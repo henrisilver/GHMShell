@@ -74,13 +74,13 @@ void get_path_string(char **tmp_envp, char *bin_path)
 		// indicating that we found the correct entry in the environment
 		// variables.
 		if(strncmp(tmp_envp[count], "PATH=", 5) == 0) {
-	        tmp = strstr(tmp_envp[count], "PATH");
-	        break;
+			strncpy(bin_path, tmp_envp[count], strlen(tmp_envp[count]));
+	    	break;
 	    } else {
 			count++;
 		}
 	}
-    strncpy(bin_path, tmp, strlen(tmp));
+    
 }
 
 void insert_path_str_to_search(char *path_str) 
