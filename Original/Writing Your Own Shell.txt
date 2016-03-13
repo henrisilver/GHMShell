@@ -1,0 +1,543 @@
+Writing Your Own Shell
+By Hiran Ramankutty
+
+
+Introduction
+		This is not another programming language tutorial. Surprise! A few days ago, I was trying to explain one of my friends about the implementation of the 'ls' command, though I had never thought of going beyond the fact that 'ls' simply lists all files and directories. But my friend happened to make me think about everything that happens from typing 'ls' to the point when we see the output of the 'ls' command. As a result, I came up with the idea of putting the stuff into some piece of code that will work similarly. Finally, I ended up in trying to write my own shell which allows my program to run in a way similar to the Linux shell.
+
+
+Shells
+		On system boot up, one can see the login screen. We log in to the system using our user name, followed by our password. The login name is looked up in the system password file (usually /etc/passwd). If the login name is found, the password is verified. The encrypted password for a user can be seen in the file /etc/shadow, immediately preceded by the user name and a colon. Once the password is verified, we are logged into the system.
+      
+		Once we log in, we can see the command shell where we usually enter our commands to execute. The shell, as described by Richard Stevens in his book Advanced Programming in the Unix Environment, is a command-line interpreter that reads user input and execute commands.
+      
+		This was the entry point for me. One program (our shell) executing another program (what the user types at the prompt). I knew that execve and its family of functions could do this, but never thought about its practical use.
+
+A note on execve()
+   Briefly, execve and its family of functions helps to initiate new programs. The family consists of the functions:
+   
+* execl
+* execv
+* execle
+* execve
+* execlp
+* execvp
+
+int execve (const char *filename, char *const argv[], char *const envp[]);
+
+is the prototype as given in the man page for execve. The filename is the complete path of the executable, argv and envp are the array of strings containing argument variables and environment variables respectively.
+
+		In fact, the actual system call is sys_execve (for execve function) and other functions in this family are just C wrapper functions around execve. Now, let us write a small program using execve. See listing below:
+
+Listing 1
+
+		Compiling and running the a.out for the above program gives the output of /bin/ls command. Now try this. Put a printf statement soon after the execve call and run the code.
+
+		I will not go in to the details of wrappers of execve. There are good books, one of which I have already mentioned (from Richard Stevens), which explains the execve family in detail.
+
+
+Some basics
+		Before we start writing our shell, we shall look at the sequence of events that occur, from the point when user types something at the shell to the point when he sees the output of the command that he typed. One would have never guessed that so much processing happens even for listing of files.
+
+		When the user hits the 'Enter' key after typing "/bin/ls", the program which runs the command (the shell) forks a new process. This process invokes the execve system call for running "/bin/ls". The complete path, "/bin/ls" is passed as a parameter to execve along with the command line argument (argv) and environment variables (envp). The system call handler sys_execvechecks for existence of the file. If the file exists, then it checks whether it is in the executable file format. Guess why? If the file is in executable file format, the execution context of the current process is altered. Finally, when the system call sys_execveterminates, "/bin/ls" is executed and the user sees the directory listing. Ooh!
+
+
+Let's Start
+		Had enough of theories? Let us start with some basic features of the command shell. The listing below tries to interpret the 'Enter' key being pressed by the user at the command prompt.
+
+Listing 2
+
+		This is simple. Something like the mandatory "hello world" program that a programmer writes while learning a new programming language. Whenever user hits the 'Enter' key, the command shell appears again. On running this code, if user hits Ctrl+D, the program terminates. 
+
+		This is similar to your default shell. When you hit Ctrl+D, you will log out of the system.
+Let us add another feature to interpret a Ctrl+C input also. It can be done simply by registering the signal handler for SIGINT. And what should the signal handler do? Let us see the code in listing 3.
+
+Listing 3
+
+		Run the program and hit Ctrl+C. What happens? You will see the command prompt again. Something that we see when we hit Ctrl+C in the shell that we use.
+
+Now try this. Remove the statement fflush(stdout) and run the program. For those who cannot predict the output, the hint is fflush forces the execution of underlying write function for the standard output.
+
+Command Execution
+		Let us expand the features of our shell to execute some basic commands. Primarily we will read user inputs, check if such a command exists, and execute it.
+
+		I am reading the user inputs using getchar(). Every character read is placed in a temporary array. The temporary array will be parsed later to frame the complete command, along with its command line options. Reading characters should go on until the user hits the 'Enter' key. This is shown in listing 4.
+
+Listing 4
+
+		Now we have the string which consists of characters that the user has typed at our command prompt. Now we have to parse it, to separate the command and the command options. To make it more clear, let us assume that the user types the command
+
+gcc -o hello hello.c
+
+		We will then have the command line arguments as
+
+argv[0] = "gcc"
+argv[1] = "-o"
+argv[2] = "hello"
+argv[3] = "hello.c"
+
+		Instead of using argv, we will create our own data structure (array of strings) to store command line arguments. The listing below defines the function fill_argv. It takes the user input string as a parameter and parses it to fill my_argv data structure. We distinguish the command and the command line options with intermediate blank spaces (' ').
+
+Listing 5
+
+		The user input string is scanned one character at a time. Characters between the blanks are copied into my_argv data structure. I have limited the number of arguments to 10, an arbitrary decision: we can have more that 10.
+
+		Finally we will have the whole user input string in my_argv[0] to my_argv[9]. The command will be my_argv[0] and the command options (if any) will be from my_argv[1] to my_argv[k] where k<9. What next?
+
+		After parsing, we have to find out if the command exists. Calls to execve will fail if the command does not exist. Note that the command passed should be the complete path. The environment variable PATH stores the different paths where the binaries could be present. The paths (one or more) are stored in PATH and are separated by a colon. These paths have to be searched for the command.
+
+		The search can be avoided by use of execlp or execvp which I am trying to purposely avoid. execlp and execvp do this search automatically.
+
+		The listing below defines a function that checks for the existence of the command.
+
+Listing 6
+
+		The attach_path function in the listing 6 will be called if its parameter cmd does not have a '/' character. When the command has a '/', it means that the user is specifying a path for the command. So, we have:
+
+
+if(index(cmd, '/') == NULL) {
+	attach_path(cmd);
+	.....
+}
+
+		The function attach_path uses an array of strings, which is initialized with the paths defined by the environment variable PATH. This initialization is given in the listing below:
+
+Listing 7
+
+		The above listing shows two functions. The function get_path_string takes the environment variable as a parameter and reads the value for the entry PATH. For example, we have:
+
+PATH=/usr/kerberos/bin:/usr/local/bin:/bin:/usr/bin:/usr/X11R6/bin:/home/hiran/bin
+
+		The function uses strstr from the standard library to get the pointer to the beginning of the complete string. This is used by the function insert_path_str_to_search in listing 7 to parse different paths and store them in a variable which is used to determine existence of paths. There are other, more efficient methods for parsing, but for now I could only think of this.
+
+		After the function attach_path determines the command's existence, it invokes execve for executing the command. Note that attach_path copies the complete path with the command. For example, if the user inputs 'ls', then attach_path modifies it to '/bin/ls'. This string is then passed while calling execve along with the command line arguments (if any) and the environment variables. The listing below shows this:
+
+Listing 8
+
+		Here, execve is called in the child process, so that the context of the parent process is retained.
+
+Complete Code and Incompleteness
+		The listing below is the complete code which I have (inefficiently) written.
+
+Listing 9
+
+		Compile and run the code to see [MY_SHELL ]. Try to run some basic commands; it should work. This should also support compiling and running small programs. Do not get surprised if 'cd' does not work. This and several other commands are built-in with the shell.
+
+		You can make this shell the default by editing /etc/passwd or using the 'chsh' command. The next time you login, you will see[MY_SHELL ] instead of your previous default shell.
+
+
+
+Conclusion
+		The primary idea was to make readers familiar with what Linux does when it executes a command. The code given here does not support all the features that bash, csh and ksh do. Support for 'Tab', 'Page Up/Down' as seen in bash (but not in ksh) can be implemented. Other features like support for shell programming, modifying environment variables during runtime, etc. are essential. A thorough look at the source code for bash is not an easy task because of the various complexities involved, but would help you develop a full featured command interpreter. Of course, reading the source code is not the complete answer. I am also trying to find other ways, but lack of time does not permit me. Have fun and enjoy......
+ 
+
+I completed my B. Tech in Computer Science & Engineering from a small town called Trichur, in Kerala, God's Own Country in India. Presently I am working in Naturesoft Pvt. Ltd, Chennai, India as a Programmer. I spend my free time reading books on Linux and exploring the same. Also, I have a good appetite for Physics. My motive in life is to go forward, onward and upward. 
+
+Copyright © 2005, Hiran Ramankutty. Released under the Open Publication license unless otherwise noted in the body of the article. Linux Gazette is not produced, sponsored, or endorsed by its prior host, SSC, Inc.
+Published in Issue 111 of Linux Gazette, February 2005
+
+
+Listing 1
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main(int argc, char **argv, char **envp)
+{
+	execve("/bin/ls", argv, envp);
+	return 0;
+}
+
+
+Listing 2
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[], char *envp[])
+{
+	char c = '\0';
+	printf("\n[MY_SHELL ] ");
+	while(c != EOF) {
+		c = getchar();
+		if(c == '\n')
+			printf("[MY_SHELL ] ");
+	}
+	printf("\n");
+	return 0;
+}
+
+Listing 3
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+
+typedef void (*sighandler_t)(int);
+char c = '\0';
+
+void handle_signal(int signo)
+{
+	printf("\n[MY_SHELL ] ");
+	fflush(stdout);
+}
+
+int main(int argc, char *argv[], char *envp[])
+{
+	signal(SIGINT, SIG_IGN);
+	signal(SIGINT, handle_signal);
+	printf("[MY_SHELL ] ");
+	while(c != EOF) {
+		c = getchar();
+		if(c == '\n')
+			printf("[MY_SHELL ] ");
+	}
+	printf("\n");
+	return 0;
+}
+
+
+Listing 4
+int main(int argc, char *argv[], char *envp[])
+{
+	/* do some initializations. */
+	while(c != EOF) {
+		c = getchar();
+		switch(c) {
+			case '\n': /* parse and execute. */
+				   bzero(tmp, sizeof(tmp));
+				   break;
+			default: strncat(tmp, &c, 1);
+				 break;
+		}
+	}
+	/* some processing before terminating. */
+	return 0;
+}
+
+Listing 5
+void fill_argv(char *tmp_argv)
+{
+	char *foo = tmp_argv;
+	int index = 0;
+	char ret[100];
+	bzero(ret, 100);
+	while(*foo != '\0') {
+		if(index == 10)
+			break;
+
+		if(*foo == ' ') {
+			if(my_argv[index] == NULL)
+				my_argv[index] = (char *)malloc(sizeof(char) * strlen(ret) + 1);
+			else {
+				bzero(my_argv[index], strlen(my_argv[index]));
+			}
+			strncpy(my_argv[index], ret, strlen(ret));
+			strncat(my_argv[index], "\0", 1);
+			bzero(ret, 100);
+			index++;
+		} else {
+			strncat(ret, foo, 1);
+		}
+		foo++;
+	}
+	if(ret[0] != '\0') { 
+		my_argv[index] = (char *)malloc(sizeof(char) * strlen(ret) + 1);
+		strncpy(my_argv[index], ret, strlen(ret));
+		strncat(my_argv[index], "\0", 1);
+	}
+}
+
+
+
+Listing 6
+int attach_path(char *cmd)
+{
+	char ret[100];
+	int index;
+	int fd;
+	bzero(ret, 100);
+	for(index=0;search_path[index]!=NULL;index++) {
+		strcpy(ret, search_path[index]);
+		strncat(ret, cmd, strlen(cmd));
+		if((fd = open(ret, O_RDONLY)) > 0) {
+			strncpy(cmd, ret, strlen(ret));
+			close(fd);
+			return 0;
+		}
+	}
+	return 0;
+}
+
+Listing 7
+void get_path_string(char **tmp_envp, char *bin_path)
+{
+	int count = 0;
+	char *tmp;
+	while(1) {
+		tmp = strstr(tmp_envp[count], "PATH");
+		if(tmp == NULL) {
+			count++;
+		} else {
+			break;
+		}
+	}
+        strncpy(bin_path, tmp, strlen(tmp));
+}
+
+void insert_path_str_to_search(char *path_str) 
+{
+	int index=0;
+	char *tmp = path_str;
+	char ret[100];
+
+	while(*tmp != '=')
+		tmp++;
+	tmp++;
+
+	while(*tmp != '\0') {
+		if(*tmp == ':') {
+			strncat(ret, "/", 1);
+			search_path[index] = (char *) malloc(sizeof(char) * (strlen(ret) + 1));
+			strncat(search_path[index], ret, strlen(ret));
+			strncat(search_path[index], "\0", 1);
+			index++;
+			bzero(ret, 100);
+		} else {
+			strncat(ret, tmp, 1);
+		}
+		tmp++;
+	}
+}
+
+Listing 8
+void call_execve(char *cmd)
+{
+	int i;
+	if(fork() == 0) {
+		i = execlp(cmd, my_argv, my_envp);
+		if(i < 0) {
+			printf("%s: %s\n", cmd, "command not found");
+			exit(1);		
+		}
+	} else {
+		wait(NULL);
+	}
+}
+
+Listing 9
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <ctype.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+extern int errno;
+
+typedef void (*sighandler_t)(int);
+static char *my_argv[100], *my_envp[100];
+static char *search_path[10];
+
+void handle_signal(int signo)
+{
+	printf("\n[MY_SHELL ] ");
+	fflush(stdout);
+}
+
+void fill_argv(char *tmp_argv)
+{
+	char *foo = tmp_argv;
+	int index = 0;
+	char ret[100];
+	bzero(ret, 100);
+	while(*foo != '\0') {
+		if(index == 10)
+			break;
+
+		if(*foo == ' ') {
+			if(my_argv[index] == NULL)
+				my_argv[index] = (char *)malloc(sizeof(char) * strlen(ret) + 1);
+			else {
+				bzero(my_argv[index], strlen(my_argv[index]));
+			}
+			strncpy(my_argv[index], ret, strlen(ret));
+			strncat(my_argv[index], "\0", 1);
+			bzero(ret, 100);
+			index++;
+		} else {
+			strncat(ret, foo, 1);
+		}
+		foo++;
+		/*printf("foo is %c\n", *foo);*/
+	}
+	my_argv[index] = (char *)malloc(sizeof(char) * strlen(ret) + 1);
+	strncpy(my_argv[index], ret, strlen(ret));
+	strncat(my_argv[index], "\0", 1);
+}
+
+void copy_envp(char **envp)
+{
+	int index = 0;
+	for(;envp[index] != NULL; index++) {
+		my_envp[index] = (char *)malloc(sizeof(char) * (strlen(envp[index]) + 1));
+		memcpy(my_envp[index], envp[index], strlen(envp[index]));
+	}
+}
+
+void get_path_string(char **tmp_envp, char *bin_path)
+{
+	int count = 0;
+	char *tmp;
+	while(1) {
+		tmp = strstr(tmp_envp[count], "PATH");
+		if(tmp == NULL) {
+			count++;
+		} else {
+			break;
+		}
+	}
+        strncpy(bin_path, tmp, strlen(tmp));
+}
+
+void insert_path_str_to_search(char *path_str) 
+{
+	int index=0;
+	char *tmp = path_str;
+	char ret[100];
+
+	while(*tmp != '=')
+		tmp++;
+	tmp++;
+
+	while(*tmp != '\0') {
+		if(*tmp == ':') {
+			strncat(ret, "/", 1);
+			search_path[index] = (char *) malloc(sizeof(char) * (strlen(ret) + 1));
+			strncat(search_path[index], ret, strlen(ret));
+			strncat(search_path[index], "\0", 1);
+			index++;
+			bzero(ret, 100);
+		} else {
+			strncat(ret, tmp, 1);
+		}
+		tmp++;
+	}
+}
+
+int attach_path(char *cmd)
+{
+	char ret[100];
+	int index;
+	int fd;
+	bzero(ret, 100);
+	for(index=0;search_path[index]!=NULL;index++) {
+		strcpy(ret, search_path[index]);
+		strncat(ret, cmd, strlen(cmd));
+		if((fd = open(ret, O_RDONLY)) > 0) {
+			strncpy(cmd, ret, strlen(ret));
+			close(fd);
+			return 0;
+		}
+	}
+	return 0;
+}
+
+void call_execve(char *cmd)
+{
+	int i;
+	printf("cmd is %s\n", cmd);
+	if(fork() == 0) {
+		i = execve(cmd, my_argv, my_envp);
+		printf("errno is %d\n", errno);
+		if(i < 0) {
+			printf("%s: %s\n", cmd, "command not found");
+			exit(1);		
+		}
+	} else {
+		wait(NULL);
+	}
+}
+
+void free_argv()
+{
+	int index;
+	for(index=0;my_argv[index]!=NULL;index++) {
+		bzero(my_argv[index], strlen(my_argv[index])+1);
+		my_argv[index] = NULL;
+		free(my_argv[index]);
+	}
+}
+
+int main(int argc, char *argv[], char *envp[])
+{
+	char c;
+	int i, fd;
+	char *tmp = (char *)malloc(sizeof(char) * 100);
+	char *path_str = (char *)malloc(sizeof(char) * 256);
+	char *cmd = (char *)malloc(sizeof(char) * 100);
+	
+	signal(SIGINT, SIG_IGN);
+	signal(SIGINT, handle_signal);
+
+	copy_envp(envp);
+	get_path_string(my_envp, path_str);
+	insert_path_str_to_search(path_str);
+
+	if(fork() == 0) {
+		execve("/usr/bin/clear", argv, my_envp);
+		exit(1);
+	} else {
+		wait(NULL);
+	}
+	printf("[MY_SHELL ] ");
+	fflush(stdout);
+	while(c != EOF) {
+		c = getchar();
+		switch(c) {
+			case '\n': if(tmp[0] == '\0') {
+					   printf("[MY_SHELL ] ");
+				   } else {
+					   fill_argv(tmp);
+					   strncpy(cmd, my_argv[0], strlen(my_argv[0]));
+					   strncat(cmd, "\0", 1);
+					   if(index(cmd, '/') == NULL) {
+						   if(attach_path(cmd) == 0) {
+							   call_execve(cmd);
+						   } else {
+							   printf("%s: command not found\n", cmd);
+						   }
+					   } else {
+						   if((fd = open(cmd, O_RDONLY)) > 0) {
+							   close(fd);
+							   call_execve(cmd);
+						   } else {
+							   printf("%s: command not found\n", cmd);
+						   }
+					   }
+					   free_argv();
+					   printf("[MY_SHELL ] ");
+					   bzero(cmd, 100);
+				   }
+				   bzero(tmp, 100);
+				   break;
+			default: strncat(tmp, &c, 1);
+				 break;
+		}
+	}
+	free(tmp);
+	free(path_str);
+	for(i=0;my_envp[i]!=NULL;i++)
+		free(my_envp[i]);
+	for(i=0;i<10;i++)
+		free(search_path[i]);
+	printf("\n");
+	return 0;
+}
+
+
