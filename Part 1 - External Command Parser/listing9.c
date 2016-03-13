@@ -67,11 +67,17 @@ void get_path_string(char **tmp_envp, char *bin_path)
 	int count = 0;
 	char *tmp;
 	while(1) {
-		tmp = strstr(tmp_envp[count], "PATH");
-		if(tmp == NULL) {
+		// Changed here: the strstr function was taking the first occurence
+		// of "PATH" and taking that string. However, that first occurence
+		// was "XDG_SESSION_PATH", and not "PATH" only. To fix this, we use
+		// strncmp to check if the beginning of the string mathes "PATH=",
+		// indicating that we found the correct entry in the environment
+		// variables.
+		if(strncmp(tmp_envp[count], "PATH=", 5) == 0) {
+	        tmp = strstr(tmp_envp[count], "PATH");
+	        break;
+	    } else {
 			count++;
-		} else {
-			break;
 		}
 	}
     strncpy(bin_path, tmp, strlen(tmp));
