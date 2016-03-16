@@ -298,10 +298,12 @@ int main(int argc, char *argv[], char *envp[])
 				   } else {
                        // Copy the arguments of the command to my_argv array
 					   fill_argv(tmp);
-                       // Copy the first one to the cmd (name of file) and insert '\0'
+                       // Copy the first argument to the cmd (name of file)
+                       // and insert '\0'
 					   strncpy(cmd, my_argv[0], strlen(my_argv[0]));
 					   strncat(cmd, "\0", 1);
-                       // If there is no '/' in the beginning of the command, execute attach the path and execute
+                       // If there is no '/' in the beginning of the command, 
+                       // attach the path and execute
 					   if(index(cmd, '/') == NULL) {
 						   if(attach_path(cmd) == 0) {
 							   call_execve(cmd);
@@ -328,7 +330,7 @@ int main(int argc, char *argv[], char *envp[])
 				 break;
 		}
 	}
-    // Desalocate memory
+    // Deallocate memory
 	free(tmp);
 	free(path_str);
 	for(i=0;my_envp[i]!=NULL;i++)
