@@ -164,22 +164,32 @@ int attach_path(char *cmd)
 	return -1;
 }
 
+/* Function acts as wrapper to the whole process of forking the
+ * shell and also checking if the call to execve was sucessful */
 void call_execve(char *cmd)
 {
-	int i;
+	int i; // Control variable (Stores execve return value)
 	printf("cmd is %s\n", cmd);
 	if(fork() == 0) {
+		// Child Process
 		i = execve(cmd, my_argv, my_envp);
 		printf("errno is %d\n", errno);
 		if(i < 0) {
+			// execve failed
 			printf("%s: %s\n", cmd, "command not found");
 			exit(1);		
 		}
 	} else {
-		wait(NULL);
+		// Father Process
+		wait(NULL); // NULL implies a wait to any child
 	}
 }
 
+/* Function is responsible free all memory used by my_argv to prevent memory
+ * leaks 
+ * > Assigns 0 to every position of each array of my_argv, erases each reference 
+ * my_argv array holds and then calls free to each position of my_argv array.
+ */
 void free_argv()
 {
 	int index;
