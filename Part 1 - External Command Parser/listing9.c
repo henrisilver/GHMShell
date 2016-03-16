@@ -115,7 +115,7 @@ void copy_envp(char **envp)
 	}
 }
 
-// Get the environment string of PATHs
+/* Get the environment string of PATHs */
 void get_path_string(char **tmp_envp, char *bin_path)
 {
 	int count = 0;
@@ -139,8 +139,9 @@ void get_path_string(char **tmp_envp, char *bin_path)
     
 }
 
-// Insere os caminhos padrões na string path_str
-// Organize the PATHs into the PATH list "search_path"
+/* Insert the PATHs found in the path_str into the
+ * search_path array.
+ */
 void insert_path_str_to_search(char *path_str) 
 {
     // PS: PATH format:
@@ -159,7 +160,8 @@ void insert_path_str_to_search(char *path_str)
 	while(*tmp != '\0') {
         // For each path...
 		if(*tmp == ':') {
-            // When it reaches the end of path, add a '/', a '\0' and copy to the search_path
+            // When it reaches the end of path, add a '/', a '\0' and
+            // copy to the search_path
 			strncat(ret, "/", 1);
 			search_path[index] = (char *) malloc(sizeof(char) * (strlen(ret) + 1));
 			strncat(search_path[index], ret, strlen(ret));
@@ -174,14 +176,16 @@ void insert_path_str_to_search(char *path_str)
 	}
 }
 
-// Attach the PATHs in the list to the command
+/* Attach the PATHs in the list to the command, to test if the
+ * command is available.
+ */
 int attach_path(char *cmd)
 {
 	char ret[100];
 	int index;
 	int fd;
 	bzero(ret, 100);
-    // For each path, concatenate it the command
+    // For each path, concatenate it with the command
     // If the file exists, store it in cmd and return 0
     // Else, return -1
 	for(index=0;search_path[index]!=NULL;index++) {
@@ -217,9 +221,9 @@ void call_execve(char *cmd)
 	}
 }
 
-/* Function is responsible free all memory used by my_argv to prevent memory
- * leaks 
- * > Assigns 0 to every position of each array of my_argv, erases each reference 
+/* Function is responsible for freeing all memory used by my_argv to prevent
+ * memory leaks.
+ * Assigns 0 to every position of each array of my_argv, erases each reference 
  * my_argv array holds and then calls free to each position of my_argv array.
  */
 void free_argv()
