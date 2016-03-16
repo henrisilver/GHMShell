@@ -45,45 +45,59 @@ static char *my_argv[100], *my_envp[100];
 /* Array of strings representing PATHs to execute commands */
 static char *search_path[10];
 
-/* Funcao definida para lidar com sinais recebidos durante a execucao.*/
+/* Function defined to deal with signals received during execution. */
 void handle_signal(int signo)
 {
 	printf("\n[GHMSHELL ] ");
 	fflush(stdout);
 }
 
-/* Funcao para copiar o conteudo de argv para a estrutura local
- * criada para isso. Eh utilizado um array de strings, onde cada uma dessas
- * strings eh um dos argumentos presentes no argv original.
- */
+/* Function used to copy the content of argv to the local structure. A
+ * string array is used, where each of the of the strings is one of the
+ * arguments present in the origianl argv typed by the user.
+*/
 void fill_argv(char *tmp_argv)
 {
+	// Make foo point to the first character of the tmp_argv,
+	// to iterate over it.
 	char *foo = tmp_argv;
 	int index = 0;
+
+	// Argument buffer used to store the current argument
 	char ret[100];
 	bzero(ret, 100);
 
-	// Enquanto o fim da string o
+	// While we don't reach the end of the string
 	while(*foo != '\0') {
 		if(index == 10)
 			break;
 
+		// If a space is found, it means we reached the end of the current
+		// command.
 		if(*foo == ' ') {
+			// Allocate memory for the command in the custom structure if
+			//  needed.
 			if(my_argv[index] == NULL)
 				my_argv[index] = (char *)malloc(sizeof(char) * strlen(ret) + 1);
+			// Otherwise, clear the string with zeros.
 			else {
 				bzero(my_argv[index], strlen(my_argv[index]));
 			}
+			// Copies the argument
 			strncpy(my_argv[index], ret, strlen(ret));
 			strncat(my_argv[index], "\0", 1);
 			bzero(ret, 100);
 			index++;
-		} else {
+		} 
+		// If not, we add the current character to the argument buffer.
+		else {
 			strncat(ret, foo, 1);
 		}
+		// Move to next character.
 		foo++;
-		/*printf("foo is %c\n", *foo);*/
 	}
+	// Copies the last argument, as there is no space character in the
+	// end of the tmp_argv.
 	my_argv[index] = (char *)malloc(sizeof(char) * strlen(ret) + 1);
 	strncpy(my_argv[index], ret, strlen(ret));
 	strncat(my_argv[index], "\0", 1);
