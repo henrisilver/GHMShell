@@ -238,17 +238,43 @@ void free_argv()
 
 int main(int argc, char *argv[], char *envp[])
 {
+	// Character used to read the user's input, character by character
 	char c;
-	int i, fd;
+
+	// Iteration variable
+	int i;
+
+	// File descriptor used to test the command if a full path
+	// was given (the '/' character is present)
+	int fd;
+
+	// String used to hold the user's input
 	char *tmp = (char *)malloc(sizeof(char) * 100);
+
+	// String used to hold the PATH entry in the environment
+	// variables received.
 	char *path_str = (char *)malloc(sizeof(char) * 256);
+
+	// Command string, composed of the actual command and
+	// the PATH to it.
 	char *cmd = (char *)malloc(sizeof(char) * 100);
 	
+	// Ignores buffered signals
 	signal(SIGINT, SIG_IGN);
+
+	// Sets handle_signal to be the signal handler when new
+	// signals are received
 	signal(SIGINT, handle_signal);
 
+	// Copies the environment variables to a local copy.
 	copy_envp(envp);
+
+	// Gets the PATH string from the environment variables
 	get_path_string(my_envp, path_str);
+
+	// Parses the PATH string, storing different paths,
+	// separated by ':', in different positions of
+	// the search_path array
 	insert_path_str_to_search(path_str);
 
 	if(fork() == 0) {
