@@ -160,12 +160,16 @@ void insert_path_str_to_search(char *path_str)
 	}
 }
 
+// Attach the PATHs in the list to the command
 int attach_path(char *cmd)
 {
 	char ret[100];
 	int index;
 	int fd;
 	bzero(ret, 100);
+    // For each path, concatenate it the command
+    // If the file exists, store it in cmd and return 0
+    // Else, return -1
 	for(index=0;search_path[index]!=NULL;index++) {
 		strcpy(ret, search_path[index]);
 		strncat(ret, cmd, strlen(cmd));
