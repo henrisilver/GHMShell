@@ -1,3 +1,20 @@
+/*
+ * Departamento de Sistemas de Computacao
+ * Instituto de Ciencias Matematicas e de Computacao
+ * Universidade de Sao Paulo
+ * SSC0743 - Sistemas Operacionais II
+ *
+ * Trabalho 1 - 1o Semestre 2016
+ * Integrantes do grupo:
+ * - Giuliano Barbosa Prado - 7961109
+ * - Henrique de Almeida Machado da Silveira - 7961089
+ * - Marcello de Paula Ferreira Costa - 7960690
+ *
+ * Trabalho baseado no codigo encontrado em
+ * "Writing Your Own Shell", por Hiran Ramankutty
+*/
+
+/* Inclusao de bibliotecas */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -10,10 +27,17 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+// Variavel utilizada para representar codigos de erros.
+// Essa vairavel eh definida em errno.h e eh modificada por
+// system calls e algumas funcoes de biblioteca quando ha erros,
+// indicando o que houve de errado.
 extern int errno;
 
-typedef void (*sighandler_t)(int);
+// Vetores de strings que serao utilizados para criar copias locais
+// dos argumentos passados para a funcao main.
 static char *my_argv[100], *my_envp[100];
+
+// Vetor de strings que representam PATHs para execucao de comandos.
 static char *search_path[10];
 
 void handle_signal(int signo)
@@ -119,7 +143,6 @@ int attach_path(char *cmd)
 		strncat(ret, cmd, strlen(cmd));
 		if((fd = open(ret, O_RDONLY)) > 0) {
 			strncpy(cmd, ret, strlen(ret));
-			//printf("\n\n HEYEAHYEAH: %s\n\n", cmd);
 			close(fd);
 			return 0;
 		}
