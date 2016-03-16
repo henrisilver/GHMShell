@@ -4,17 +4,17 @@
  * Universidade de Sao Paulo
  * SSC0743 - Sistemas Operacionais II
  *
- * Trabalho 1 - 1o Semestre 2016
- * Integrantes do grupo:
+ * Project 1 - 1st semester of 2016
+ * Group members:
  * - Giuliano Barbosa Prado - 7961109
  * - Henrique de Almeida Machado da Silveira - 7961089
  * - Marcello de Paula Ferreira Costa - 7960690
  *
- * Trabalho baseado no codigo encontrado em
- * "Writing Your Own Shell", por Hiran Ramankutty
-*/
+ * Project based on the code found in
+ * "Writing Your Own Shell", by Hiran Ramankutty
+ */
 
-/* Inclusao de bibliotecas */
+/* Including libraries */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -27,31 +27,43 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-// Variavel utilizada para representar codigos de erros.
-// Essa vairavel eh definida em errno.h e eh modificada por
-// system calls e algumas funcoes de biblioteca quando ha erros,
-// indicando o que houve de errado.
+
+/* Variable used to represent error codes. This variable is defined in
+ * errno.h and is set by system call of library functions when there are
+ * errors, indicating what went wrong.
+ */
 extern int errno;
 
-// Vetores de strings que serao utilizados para criar copias locais
-// dos argumentos passados para a funcao main.
+/* Arrays of string that will be used:
+ * my_argv: represents the argv that will be passed to the command that will
+ * be executed (using a custom data structure instead of having a single string
+ * containing all command line arguments), typed by the user.
+ * my_envp: local copy of the envp variable.
+ */
 static char *my_argv[100], *my_envp[100];
 
-// Vetor de strings que representam PATHs para execucao de comandos.
+/* Array of strings representing PATHs to execute commands */
 static char *search_path[10];
 
+/* Funcao definida para lidar com sinais recebidos durante a execucao.*/
 void handle_signal(int signo)
 {
 	printf("\n[GHMSHELL ] ");
 	fflush(stdout);
 }
 
+/* Funcao para copiar o conteudo de argv para a estrutura local
+ * criada para isso. Eh utilizado um array de strings, onde cada uma dessas
+ * strings eh um dos argumentos presentes no argv original.
+ */
 void fill_argv(char *tmp_argv)
 {
 	char *foo = tmp_argv;
 	int index = 0;
 	char ret[100];
 	bzero(ret, 100);
+
+	// Enquanto o fim da string o
 	while(*foo != '\0') {
 		if(index == 10)
 			break;
@@ -77,6 +89,9 @@ void fill_argv(char *tmp_argv)
 	strncat(my_argv[index], "\0", 1);
 }
 
+/* Copies the envp values received by the main function to the my_envp
+ * local variable.
+ */
 void copy_envp(char **envp)
 {
 	int index = 0;
@@ -89,7 +104,6 @@ void copy_envp(char **envp)
 void get_path_string(char **tmp_envp, char *bin_path)
 {
 	int count = 0;
-	char *tmp;
 	while(1) {
 		// Changed here: the strstr function was taking the first occurence
 		// of "PATH" and taking that string. However, that first occurence
