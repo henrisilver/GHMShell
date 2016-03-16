@@ -115,6 +115,7 @@ void copy_envp(char **envp)
 	}
 }
 
+// Get the environment string of PATHs
 void get_path_string(char **tmp_envp, char *bin_path)
 {
 	int count = 0;
@@ -125,6 +126,9 @@ void get_path_string(char **tmp_envp, char *bin_path)
 		// strncmp to check if the beginning of the string mathes "PATH=",
 		// indicating that we found the correct entry in the environment
 		// variables.
+        
+        // Search the environment PATH string. When it's found, copy the result
+        // to the bin_path. Else, search in the next environment variable
 		if(strncmp(tmp_envp[count], "PATH=", 5) == 0) {
 			strncpy(bin_path, tmp_envp[count], strlen(tmp_envp[count]));
 	    	break;
@@ -135,18 +139,27 @@ void get_path_string(char **tmp_envp, char *bin_path)
     
 }
 
+// Insere os caminhos padrões na string path_str
+// Organize the PATHs into the PATH list "search_path"
 void insert_path_str_to_search(char *path_str) 
 {
+    // PS: PATH format:
+    // PATH=caminho1:caminho2:caminho3
+    
 	int index=0;
 	char *tmp = path_str;
 	char ret[100];
-
+    
+    // Ignore the string "PATH="
 	while(*tmp != '=')
 		tmp++;
 	tmp++;
 
+    // Until the end of the PATH
 	while(*tmp != '\0') {
+        // For each path...
 		if(*tmp == ':') {
+            // When it reaches the end of path, add a '/', a '\0' and copy to the search_path
 			strncat(ret, "/", 1);
 			search_path[index] = (char *) malloc(sizeof(char) * (strlen(ret) + 1));
 			strncat(search_path[index], ret, strlen(ret));
@@ -154,18 +167,23 @@ void insert_path_str_to_search(char *path_str)
 			index++;
 			bzero(ret, 100);
 		} else {
+            // Concatenate the letter into ret
 			strncat(ret, tmp, 1);
 		}
 		tmp++;
 	}
 }
 
+// Attach the PATHs in the list to the command
 int attach_path(char *cmd)
 {
 	char ret[100];
 	int index;
 	int fd;
 	bzero(ret, 100);
+    // For each path, concatenate it the command
+    // If the file exists, store it in cmd and return 0
+    // Else, return -1
 	for(index=0;search_path[index]!=NULL;index++) {
 		strcpy(ret, search_path[index]);
 		strncat(ret, cmd, strlen(cmd));
