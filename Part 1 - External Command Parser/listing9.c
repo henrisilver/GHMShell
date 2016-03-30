@@ -174,6 +174,12 @@ void insert_path_str_to_search(char *path_str)
 		}
 		tmp++;
 	}
+	// Copying the last entry in the PATH string, which does not have a
+	// terminating ':' character
+	strncat(ret, "/", 1);
+	search_path[index] = (char *) malloc(sizeof(char) * (strlen(ret) + 1));
+	strncat(search_path[index], ret, strlen(ret));
+	strncat(search_path[index], "\0", 1);
 }
 
 /* Attach the PATHs in the list to the command, to test if the
