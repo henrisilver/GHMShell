@@ -257,6 +257,25 @@ void cleanup(char *tmp, char *path_str) {
 	printf("\n");
 }
 
+int localCommand (char* command, char *tmp, char *path_str) {
+
+    if(strncmp(command, "quit", 4) == 0 && strlen(command) == 4) {
+        free_argv();
+        cleanup(tmp, path_str);
+        exit(0);
+    }
+    if(strncmp(command, "cd", 3) == 0) {
+        chdir(my_argv[1]);
+        return -1;
+    } else if(strncmp(cmd, "pwd", 3) == 0 && strlen(cmd) == 3) {
+		// Stores the path for the current working directory.
+		char path[500];
+		printf("%s\n", getcwd(path, 500));
+		return -1;
+	}
+    return 0;
+}
+
 int main(int argc, char *argv[], char *envp[])
 {
 	// Character used to read the user's input, character by character
@@ -276,9 +295,6 @@ int main(int argc, char *argv[], char *envp[])
 	// Command string, composed of the actual command and
 	// the PATH to it.
 	char *cmd = (char *)malloc(sizeof(char) * 100);
-
-	// Stores the path for the current working directory.
-	char path[500];
 	
 	// Ignores buffered signals
 	signal(SIGINT, SIG_IGN);
@@ -325,27 +341,23 @@ int main(int argc, char *argv[], char *envp[])
 					   strncat(cmd, "\0", 1);
                        // If there is no '/' in the beginning of the command, 
                        // attach the path and execute
-					   if(index(cmd, '/') == NULL) {
-					   		if(strncmp(cmd, "quit", 4) == 0 && strlen(cmd) == 4) {
-					   			free_argv();
-					   			cleanup(tmp, path_str);
-					   			return 0;
-						    } else if(strncmp(cmd, "pwd", 3) == 0 && strlen(cmd) == 3) {
-						    	printf("%s\n", getcwd(path, 500));
-						    } else if(attach_path(cmd) == 0) {
-							    call_execve(cmd);
-						    } else {
-							    printf("%s: command not found\n", cmd);
-						    }
-                        // Else, directly execute the command
-					   } else {
-						    if((fd = open(cmd, O_RDONLY)) > 0) {
-							    close(fd);
-							    call_execve(cmd);
-						    } else {
-							    printf("%s: command not found\n", cmd);
-						    }
-					   }
+                       if (localCommand(cmd, tmp, path_str)==0) {
+                           if(index(cmd, '/') == NULL) {
+                               if(attach_path(cmd) == 0) {
+                                   call_execve(cmd);
+                               } else {
+                                   printf("%s: command not found1\n", cmd);
+                               }
+                               // Else, directly execute the command
+                           } else {
+                               if((fd = open(cmd, O_RDONLY)) > 0) {
+                                   close(fd);
+                                   call_execve(cmd);
+                               } else {
+                                   printf("%s: command not found\n", cmd);
+                               }
+                           }
+                       }
                        // Clear the arguments, cmd, and repeat the shell
 					   free_argv();
 					   printf("[GHMSHELL ] ");
