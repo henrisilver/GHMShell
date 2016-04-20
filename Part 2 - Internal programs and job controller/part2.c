@@ -242,13 +242,25 @@ void free_argv()
 	}
 }
 
+void cleanup(char *tmp, char *path_str) {
+	
+	// Iteration variable
+	int i;
+
+	// Deallocate memory
+	free(tmp);
+	free(path_str);
+	for(i=0;my_envp[i]!=NULL;i++)
+		free(my_envp[i]);
+	for(i=0;i<10;i++)
+		free(search_path[i]);
+	printf("\n");
+}
+
 int main(int argc, char *argv[], char *envp[])
 {
 	// Character used to read the user's input, character by character
 	char c;
-
-	// Iteration variable
-	int i;
 
 	// File descriptor used to test the command if a full path
 	// was given (the '/' character is present)
@@ -311,19 +323,23 @@ int main(int argc, char *argv[], char *envp[])
                        // If there is no '/' in the beginning of the command, 
                        // attach the path and execute
 					   if(index(cmd, '/') == NULL) {
-						   if(attach_path(cmd) == 0) {
-							   call_execve(cmd);
-						   } else {
-							   printf("%s: command not found\n", cmd);
-						   }
+					   		if(strncmp(cmd, "quit", 4) == 0 && strlen(cmd) == 4) {
+					   			free_argv();
+					   			cleanup(tmp, path_str);
+					   			return 0;
+						    } else if(attach_path(cmd) == 0) {
+							    call_execve(cmd);
+						    } else {
+							    printf("%s: command not found1\n", cmd);
+						    }
                         // Else, directly execute the command
 					   } else {
-						   if((fd = open(cmd, O_RDONLY)) > 0) {
-							   close(fd);
-							   call_execve(cmd);
-						   } else {
-							   printf("%s: command not found\n", cmd);
-						   }
+						    if((fd = open(cmd, O_RDONLY)) > 0) {
+							    close(fd);
+							    call_execve(cmd);
+						    } else {
+							    printf("%s: command not found\n", cmd);
+						    }
 					   }
                        // Clear the arguments, cmd, and repeat the shell
 					   free_argv();
@@ -332,17 +348,12 @@ int main(int argc, char *argv[], char *envp[])
 				   }
 				   bzero(tmp, 100);
 				   break;
-			default: strncat(tmp, &c, 1);
-				 break;
+			default: 
+				strncat(tmp, &c, 1);
+				break;
 		}
 	}
-    // Deallocate memory
-	free(tmp);
-	free(path_str);
-	for(i=0;my_envp[i]!=NULL;i++)
-		free(my_envp[i]);
-	for(i=0;i<10;i++)
-		free(search_path[i]);
-	printf("\n");
+  	
+  	cleanup(tmp, path_str);
 	return 0;
 }
