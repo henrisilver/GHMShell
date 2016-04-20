@@ -211,7 +211,7 @@ int attach_path(char *cmd)
 void call_execve(char *cmd)
 {
 	int i; // Control variable (Stores execve return value)
-	printf("cmd is %s\n", cmd);
+	//printf("cmd is %s\n", cmd);
 	if(fork() == 0) {
 		// Child Process
 		i = execve(cmd, my_argv, my_envp);
@@ -276,6 +276,9 @@ int main(int argc, char *argv[], char *envp[])
 	// Command string, composed of the actual command and
 	// the PATH to it.
 	char *cmd = (char *)malloc(sizeof(char) * 100);
+
+	// Stores the path for the current working directory.
+	char path[500];
 	
 	// Ignores buffered signals
 	signal(SIGINT, SIG_IGN);
@@ -327,10 +330,12 @@ int main(int argc, char *argv[], char *envp[])
 					   			free_argv();
 					   			cleanup(tmp, path_str);
 					   			return 0;
+						    } else if(strncmp(cmd, "pwd", 3) == 0 && strlen(cmd) == 3) {
+						    	printf("%s\n", getcwd(path, 500));
 						    } else if(attach_path(cmd) == 0) {
 							    call_execve(cmd);
 						    } else {
-							    printf("%s: command not found1\n", cmd);
+							    printf("%s: command not found\n", cmd);
 						    }
                         // Else, directly execute the command
 					   } else {
