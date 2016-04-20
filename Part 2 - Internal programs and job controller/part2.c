@@ -267,7 +267,7 @@ int localCommand (char* command, char *tmp, char *path_str) {
     if(strncmp(command, "cd", 3) == 0) {
         chdir(my_argv[1]);
         return -1;
-    } else if(strncmp(cmd, "pwd", 3) == 0 && strlen(cmd) == 3) {
+    } else if(strncmp(command, "pwd", 3) == 0 && strlen(command) == 3) {
 		// Stores the path for the current working directory.
 		char path[500];
 		printf("%s\n", getcwd(path, 500));
