@@ -211,7 +211,7 @@ int attach_path(char *cmd)
 void call_execve(char *cmd)
 {
 	int i; // Control variable (Stores execve return value)
-	printf("cmd is %s\n", cmd);
+	//printf("cmd is %s\n", cmd);
 	if(fork() == 0) {
 		// Child Process
 		i = execve(cmd, my_argv, my_envp);
@@ -242,13 +242,44 @@ void free_argv()
 	}
 }
 
+void cleanup(char *tmp, char *path_str) {
+	
+	// Iteration variable
+	int i;
+
+	// Deallocate memory
+	free(tmp);
+	free(path_str);
+	for(i=0;my_envp[i]!=NULL;i++)
+		free(my_envp[i]);
+	for(i=0;i<10;i++)
+		free(search_path[i]);
+	printf("\n");
+}
+
+int localCommand (char* command, char *tmp, char *path_str) {
+
+    if(strncmp(command, "quit", 4) == 0 && strlen(command) == 4) {
+        free_argv();
+        cleanup(tmp, path_str);
+        exit(0);
+    }
+    if(strncmp(command, "cd", 3) == 0) {
+        chdir(my_argv[1]);
+        return -1;
+    } else if(strncmp(command, "pwd", 3) == 0 && strlen(command) == 3) {
+		// Stores the path for the current working directory.
+		char path[500];
+		printf("%s\n", getcwd(path, 500));
+		return -1;
+	}
+    return 0;
+}
+
 int main(int argc, char *argv[], char *envp[])
 {
 	// Character used to read the user's input, character by character
 	char c;
-
-	// Iteration variable
-	int i;
 
 	// File descriptor used to test the command if a full path
 	// was given (the '/' character is present)
@@ -310,21 +341,23 @@ int main(int argc, char *argv[], char *envp[])
 					   strncat(cmd, "\0", 1);
                        // If there is no '/' in the beginning of the command, 
                        // attach the path and execute
-					   if(index(cmd, '/') == NULL) {
-						   if(attach_path(cmd) == 0) {
-							   call_execve(cmd);
-						   } else {
-							   printf("%s: command not found\n", cmd);
-						   }
-                        // Else, directly execute the command
-					   } else {
-						   if((fd = open(cmd, O_RDONLY)) > 0) {
-							   close(fd);
-							   call_execve(cmd);
-						   } else {
-							   printf("%s: command not found\n", cmd);
-						   }
-					   }
+                       if (localCommand(cmd, tmp, path_str)==0) {
+                           if(index(cmd, '/') == NULL) {
+                               if(attach_path(cmd) == 0) {
+                                   call_execve(cmd);
+                               } else {
+                                   printf("%s: command not found1\n", cmd);
+                               }
+                               // Else, directly execute the command
+                           } else {
+                               if((fd = open(cmd, O_RDONLY)) > 0) {
+                                   close(fd);
+                                   call_execve(cmd);
+                               } else {
+                                   printf("%s: command not found\n", cmd);
+                               }
+                           }
+                       }
                        // Clear the arguments, cmd, and repeat the shell
 					   free_argv();
 					   printf("[GHMSHELL ] ");
@@ -332,17 +365,12 @@ int main(int argc, char *argv[], char *envp[])
 				   }
 				   bzero(tmp, 100);
 				   break;
-			default: strncat(tmp, &c, 1);
-				 break;
+			default: 
+				strncat(tmp, &c, 1);
+				break;
 		}
 	}
-    // Deallocate memory
-	free(tmp);
-	free(path_str);
-	for(i=0;my_envp[i]!=NULL;i++)
-		free(my_envp[i]);
-	for(i=0;i<10;i++)
-		free(search_path[i]);
-	printf("\n");
+  	
+  	cleanup(tmp, path_str);
 	return 0;
 }
