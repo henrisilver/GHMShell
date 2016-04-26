@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define TERMINATED 1
+#define ACTIVE 0
+
 typedef pid_t jid_t;
 
 typedef struct Node {

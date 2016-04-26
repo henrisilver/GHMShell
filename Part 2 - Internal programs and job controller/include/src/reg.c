@@ -131,7 +131,11 @@ void listToString(List *list){
 		printf(" Job: %s\n", current -> processName);
 		printf(" PID: %d\n", current -> pid);
 		printf(" JID: %d\n", current -> jid);
-		printf("STAT: %d\n", current -> status);
+		if(status == ACTIVE){
+			printf("Active\n");
+		} else {
+			printf("Terminated\n");
+		}
 		printf("--------------------------\n");
 		current = current -> next;
 	}
@@ -160,6 +164,29 @@ void emptyList(List *list){
 
 			free(previous);
 			previous = current;
+		}
+	}
+}
+
+Node * findNode(List *list, int key){
+
+	int listSize;
+	Node *current = NULL;
+	if (list != NULL){
+		listSize = list -> size;
+		if(size > 0){
+			current = list -> head;
+
+			while(current != NULL){
+				if(current -> jid == key){
+					return current;
+				}
+				else {
+					current = current -> next;
+				}
+			}
+		} else {
+			return NULL;
 		}
 	}
 }
