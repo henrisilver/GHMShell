@@ -34,6 +34,8 @@
  */
 extern int errno;
 
+int backgroundExec;
+
 /* Arrays of string that will be used:
  * my_argv: represents the argv that will be passed to the command that will
  * be executed (using a custom data structure instead of having a single string
@@ -239,6 +241,7 @@ void free_argv()
 		bzero(my_argv[index], strlen(my_argv[index])+1);
 		my_argv[index] = NULL;
 		free(my_argv[index]);
+		
 	}
 }
 
@@ -274,6 +277,26 @@ int localCommand (char* command, char *tmp, char *path_str) {
 		return -1;
 	}
     return 0;
+}
+
+// If the last character of my_argv[0] (the command) is '&' or
+// the las argument is '&', we set backgroundExec to 1, meaning we
+// must perform a background execution of the command. Also, the '&'
+// in both cases is removed from the strings.
+void checkBackgroundExecution() {
+	if(my_argv[0][strlen(my_argv[0]) - 1] == '&') {
+		backgroundExec = 1;
+		my_argv[0][strlen(my_argv[0]) - 1] = '\0';
+	} else {
+		int index;
+		for(index=0;my_argv[index]!=NULL;index++) {
+			if(strncmp(my_argv[index], "&", 1) == 0) {
+				backgroundExec = 1;
+				free(my_argv[index]);
+				my_argv[index] = NULL;
+			}
+		}
+	}
 }
 
 int main(int argc, char *argv[], char *envp[])
@@ -333,12 +356,19 @@ int main(int argc, char *argv[], char *envp[])
                        // Print the terminal label if there is no command
 					   printf("[GHMSHELL ] ");
 				   } else {
+				   		backgroundExec = 0;
+
                        // Copy the arguments of the command to my_argv array
 					   fill_argv(tmp);
+
+					   // Checks if the command's execution must be in the background
+					   checkBackgroundExecution();
+
                        // Copy the first argument to the cmd (name of file)
                        // and insert '\0'
 					   strncpy(cmd, my_argv[0], strlen(my_argv[0]));
 					   strncat(cmd, "\0", 1);
+
                        // If there is no '/' in the beginning of the command, 
                        // attach the path and execute
                        if (localCommand(cmd, tmp, path_str)==0) {
