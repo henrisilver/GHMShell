@@ -317,6 +317,16 @@ int localCommand (char* command, char *tmp, char *path_str) {
 
     if(strncmp(command, "quit", 4) == 0 && strlen(command) == 4) {
         free_argv();
+        Node * current = NULL;
+
+        current = jobs_list -> head;
+		while(current != NULL){
+			if (current->status==RUNNING)
+				kill(current->pid, SIGKILL);
+			current = current -> next;
+        }
+
+
         cleanup(tmp, path_str);
         exit(0);
     }
