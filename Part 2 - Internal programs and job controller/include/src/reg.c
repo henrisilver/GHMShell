@@ -10,7 +10,7 @@
 #include "reg.h"
 
 List * initialize(){
-	printDebug("initialize","entered function");
+	//printDebug("initialize","entered function");
 	List * list = NULL;
 
 	list = (List *) calloc(1,sizeof(List));
@@ -112,20 +112,21 @@ int isEmpty(List *list){
 }
 
 void listToString(List *list){
-	printDebug("listToString","entered function");
+	//printDebug("listToString","entered function");
 	int listSize = list -> size;
 	int i = 0;
 	Node *current = NULL;
 
-	printf("List Size: %d\n", listSize);
+	//printf("List Size: %d\n", listSize);
 
 	current = list -> head;
 	for (i < 0; i < listSize; i++){
 		printf(" Job: %s\n", current -> processName);
 		printf(" PID: %d\n", current -> pid);
 		printf(" JID: %d\n", current -> jid);
+		printf(" Status: ");
 		if(current -> status == RUNNING){
-			printf("Active\n");
+			printf("Running\n");
 		} else if(current -> status == DONE) {
 			printf("Done\n");
 		} else {
@@ -153,7 +154,7 @@ void emptyList(List *list){
 		current = list -> head;
 		previous = current;
 		while (i++ < listSize){
-			printDebug("emptyList","Removing another node");
+			//printDebug("emptyList","Removing another node");
 			free(current -> processName);
 			current = current -> next;
 
