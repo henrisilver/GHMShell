@@ -21,8 +21,8 @@ List * initialize(){
 	return list;
 }
 
-// The key is jid_t of a job
-void removeNode(List *list, jid_t key){
+// The key is the jid of a job
+void removeNode(List *list, int key){
 	Node *current = NULL;
 	Node *previous = NULL;
 	int listSize = 0;
@@ -73,7 +73,7 @@ void removeNode(List *list, jid_t key){
 	}
 }
 
-Node * createNode(char *processName, pid_t pid, jid_t jid, int status){
+Node * createNode(char *processName, pid_t pid, int jid, int status){
 	Node *node = (Node *) malloc(sizeof(Node));
 	node -> processName = (char *) malloc (strlen(processName)*sizeof(char)+1);
 
@@ -111,13 +111,6 @@ int isEmpty(List *list){
 		return 1;
 }
 
-Node * findNode(List *list, jid_t jid){
-	Node *current = NULL;
-	if (list != NULL) {
-		current = list -> head;
-	}
-}
-
 void listToString(List *list){
 	printDebug("listToString","entered function");
 	int listSize = list -> size;
@@ -131,8 +124,10 @@ void listToString(List *list){
 		printf(" Job: %s\n", current -> processName);
 		printf(" PID: %d\n", current -> pid);
 		printf(" JID: %d\n", current -> jid);
-		if(status == ACTIVE){
+		if(current -> status == RUNNING){
 			printf("Active\n");
+		} else if(current -> status == DONE) {
+			printf("Done\n");
 		} else {
 			printf("Terminated\n");
 		}
@@ -174,7 +169,7 @@ Node * findNode(List *list, int key){
 	Node *current = NULL;
 	if (list != NULL){
 		listSize = list -> size;
-		if(size > 0){
+		if(listSize > 0){
 			current = list -> head;
 
 			while(current != NULL){

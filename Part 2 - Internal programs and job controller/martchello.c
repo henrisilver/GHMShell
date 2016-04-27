@@ -34,6 +34,10 @@
  */
 extern int errno;
 
+// Indicates when a command should be executed in background.
+// 0 -> NO
+// 1 -> YES
+int backgroundExec;
 
 /* Arrays of string that will be used:
  * my_argv: represents the argv that will be passed to the command that will
@@ -218,14 +222,22 @@ void update_jobs_status(){
 	if (jobs_list != NULL){
 		current = jobs_list -> head;
 		while(current != NULL){
-			return_pid = waitpid(current->pid,&status,WNOHANG);
+			return_pid = waitpid(current->pid,&status,WNOHANG|WUNTRACED);
 			if(return_pid == current->pid){
-				current -> status = TERMINATED;
+				if (WIFEXITED(status)){
+                	current -> status = DONE;
+				} else if (WIFSIGNALED(status)) {
+					current -> status = TERMINATED;
+              	} else if (WIFSTOPPED(status)) {
+              		// Do we have to do anything here?
+              	}
+                	
 			}
 			current = current -> next;
-		}
+        }
 	}
 }
+
 
 /* Function acts as wrapper to the whole process of forking the
  * shell and also checking if the call to execve was sucessful */
@@ -253,13 +265,13 @@ void call_execve(char *cmd)
 		// Father Process
 
 		// Inserir na lista
-		insertNode(jobs_list,createNode(cmd,forkResult,next_jid++,ACTIVE));
+		insertNode(jobs_list,createNode(cmd,forkResult,next_jid++,RUNNING));
 
 		if (backgroundExec == 0) {
 			waitpid(forkResult,NULL,0); // NULL implies a wait to any child
 			// Reparar no status. Deve ser colocado como terminado
 			Node *node = findNode(jobs_list,next_jid-1);
-			node -> status = TERMINATED;
+			node -> status = DONE;
 		}
 	}
 }
@@ -292,6 +304,7 @@ void cleanup(char *tmp, char *path_str) {
 	for(i=0;i<10;i++)
 		free(search_path[i]);
 	printf("\n");
+	emptyList(jobs_list);
 }
 
 int localCommand (char* command, char *tmp, char *path_str) {
@@ -311,6 +324,26 @@ int localCommand (char* command, char *tmp, char *path_str) {
 		return -1;
 	}
     return 0;
+}
+
+// If the last character of my_argv[0] (the command) is '&' or
+// the las argument is '&', we set backgroundExec to 1, meaning we
+// must perform a background execution of the command. Also, the '&'
+// in both cases is removed from the strings.
+void checkBackgroundExecution() {
+	if(my_argv[0][strlen(my_argv[0]) - 1] == '&') {
+		backgroundExec = 1;
+		my_argv[0][strlen(my_argv[0]) - 1] = '\0';
+	} else {
+		int index;
+		for(index=0;my_argv[index]!=NULL;index++) {
+			if(strncmp(my_argv[index], "&", 1) == 0) {
+				backgroundExec = 1;
+				free(my_argv[index]);
+				my_argv[index] = NULL;
+			}
+		}
+	}
 }
 
 void printArgs(char *tmp){
@@ -380,6 +413,10 @@ int main(int argc, char *argv[], char *envp[])
                        // Copy the arguments of the command to my_argv array
 					   fill_argv(tmp);
 					   printArgs(tmp);
+
+					   // Checks if the command's execution must be in the background
+					   checkBackgroundExecution();
+
                        // Copy the first argument to the cmd (name of file)
                        // and insert '\0'
 					   strncpy(cmd, my_argv[0], strlen(my_argv[0]));

@@ -5,15 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TERMINATED 1
-#define ACTIVE 0
-
-typedef pid_t jid_t;
+#define RUNNING 0
+#define DONE 1
+#define TERMINATED 2
 
 typedef struct Node {
 	char *processName;
 	pid_t pid;
-	jid_t jid;
+	int jid;
 	int status;
 
 	struct Node *next;
@@ -26,11 +25,11 @@ typedef struct List {
 } List;
 
 List * initialize();
-void removeNode(List *list, jid_t key);
-Node * createNode(char *processName, pid_t pid, jid_t jid, int status);
+void removeNode(List *list, int key);
+Node * createNode(char *processName, pid_t pid, int jid, int status);
 void insertTail(List *list, Node *node);
 int isEmpty(List *list);
-Node * findNode(List *list, jid_t jid);
+Node * findNode(List *list, int jid);
 void listToString(List *list);
 void printDebug(char *TAG, char *message);
 void emptyList(List *list);
