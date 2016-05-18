@@ -58,12 +58,39 @@ static char *search_path[10];
 // Stores the path for the current working directory.
 char cwd_path[500];
 
-/* Function defined to deal with signals received during execution. */
-void handle_signal(int signo)
+void update_jobs_status(){
+	Node * current = NULL;
+	int status;
+	pid_t return_pid;
+
+	if (jobs_list != NULL){
+		current = jobs_list -> head;
+		while(current != NULL){
+			return_pid = waitpid(current->pid,&status,WNOHANG|WUNTRACED);
+			if(return_pid == current->pid){
+				if (WIFEXITED(status)){
+                	current -> status = DONE;
+				} else if (WIFSIGNALED(status)) {
+					current -> status = TERMINATED;
+              	} else if (WIFSTOPPED(status)) {
+              		current -> status = STOPPED;
+              	}
+                	
+			}
+			current = current -> next;
+        }
+	}
+}
+
+/* Function defined to deal with signals SIGINT or SIGTSTP received during execution. */
+void handle_sig_int(int signo)
 {
+	printf("\n");
 	printf(SHELLNAME);
 	fflush(stdout);
 }
+
+void handle_sig_tstp() { }
 
 /* Function used to copy the content of argv to the local structure. A
  * string array is used, where each of the of the strings is one of the
@@ -219,31 +246,6 @@ int attach_path(char *cmd)
 	return -1;
 }
 
-void update_jobs_status(){
-	Node * current = NULL;
-	int status;
-	pid_t return_pid;
-
-	if (jobs_list != NULL){
-		current = jobs_list -> head;
-		while(current != NULL){
-			return_pid = waitpid(current->pid,&status,WNOHANG|WUNTRACED);
-			if(return_pid == current->pid){
-				if (WIFEXITED(status)){
-                	current -> status = DONE;
-				} else if (WIFSIGNALED(status)) {
-					current -> status = TERMINATED;
-              	} else if (WIFSTOPPED(status)) {
-              		// Do we have to do anything here?
-              	}
-                	
-			}
-			current = current -> next;
-        }
-	}
-}
-
-
 /* Function acts as wrapper to the whole process of forking the
  * shell and also checking if the call to execve was sucessful */
 void call_execve(char *cmd)
@@ -274,10 +276,18 @@ void call_execve(char *cmd)
 		insertTail(jobs_list,createNode(cmd,forkResult,next_jid++,RUNNING));
 
 		if (backgroundExec == 0) {
-			waitpid(forkResult,NULL,0); // NULL implies a wait to any child
+			int status;
+			waitpid(forkResult,&status,WUNTRACED); // NULL implies a wait to any child
 			// Reparar no status. Deve ser colocado como terminado
 			Node *node = findNode(jobs_list,next_jid-1);
-			node -> status = DONE;
+			if (WIFSIGNALED(status)) {
+				node -> status = TERMINATED;
+            } else if (WIFSTOPPED(status)) {
+              	node -> status = STOPPED;
+              	printf("\n[%d]+\tStopped\t\t%s\n", node->jid, node->processName);
+            } else {
+            	node -> status = DONE;
+            }
 		}
 	}
 }
@@ -383,10 +393,15 @@ int main(int argc, char *argv[], char *envp[])
 	
 	// Ignores buffered signals
 	signal(SIGINT, SIG_IGN);
+	signal(SIGTSTP, SIG_IGN);
 
-	// Sets handle_signal to be the signal handler when new
-	// signals are received
-	signal(SIGINT, handle_signal);
+	// Sets handle_sig_int to be the signal handler when new
+	// signals SIGINT are received
+	signal(SIGINT, handle_sig_int);
+
+	// Sets handle_sig_stp to be the signal handler when new
+	// signals SIGTSTP are received
+	signal(SIGTSTP, handle_sig_tstp);
 
 	jobs_list = initialize();
 
@@ -425,6 +440,8 @@ int main(int argc, char *argv[], char *envp[])
                        // Copy the arguments of the command to my_argv array
 					   fill_argv(tmp);
 					   //printArgs(tmp);
+
+					   backgroundExec = 0;
 
 					   // Checks if the command's execution must be in the background
 					   checkBackgroundExecution();
