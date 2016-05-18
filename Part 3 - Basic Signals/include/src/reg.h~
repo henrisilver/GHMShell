@@ -8,7 +8,6 @@
 #define RUNNING 0
 #define DONE 1
 #define TERMINATED 2
-#define STOPPED 3
 
 typedef struct Node {
 	char *processName;

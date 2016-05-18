@@ -61,6 +61,7 @@ char cwd_path[500];
 /* Function defined to deal with signals received during execution. */
 void handle_signal(int signo)
 {
+	printf("\n");
 	printf(SHELLNAME);
 	fflush(stdout);
 }
@@ -435,6 +436,8 @@ int main(int argc, char *argv[], char *envp[])
                        // Copy the arguments of the command to my_argv array
 					   fill_argv(tmp);
 					   //printArgs(tmp);
+
+					   backgroundExec = 0;
 
 					   // Checks if the command's execution must be in the background
 					   checkBackgroundExecution();
