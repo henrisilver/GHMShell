@@ -81,6 +81,8 @@ void handle_signal_nothing(int signo)
 {
 }
 
+void handle_sig_tstp() { }
+
 /* Function used to copy the content of argv to the local structure. A
  * string array is used, where each of the of the strings is one of the
  * arguments present in the origianl argv typed by the user.
@@ -235,31 +237,6 @@ int attach_path(char *cmd)
 	return -1;
 }
 
-void update_jobs_status(){
-	Node * current = NULL;
-	int status;
-	pid_t return_pid;
-
-	if (jobs_list != NULL){
-		current = jobs_list -> head;
-		while(current != NULL){
-			return_pid = waitpid(current->pid,&status,WNOHANG|WUNTRACED);
-			if(return_pid == current->pid){
-				if (WIFEXITED(status)){
-                	current -> status = DONE;
-				} else if (WIFSIGNALED(status)) {
-					current -> status = TERMINATED;
-              	} else if (WIFSTOPPED(status)) {
-              		// Do we have to do anything here?
-              	}
-                	
-			}
-			current = current -> next;
-        }
-	}
-}
-
-
 /* Function acts as wrapper to the whole process of forking the
  * shell and also checking if the call to execve was sucessful */
 void call_execve(char *cmd)
@@ -293,7 +270,14 @@ void call_execve(char *cmd)
             setForeground(forkResult); // put the process in foreground
 			// Reparar no status. Deve ser colocado como terminado
 			Node *node = findNode(jobs_list,next_jid-1);
-			node -> status = DONE;
+			if (WIFSIGNALED(status)) {
+				node -> status = TERMINATED;
+            } else if (WIFSTOPPED(status)) {
+              	node -> status = STOPPED;
+              	printf("\n[%d]+\tStopped\t\t%s\n", node->jid, node->processName);
+            } else {
+            	node -> status = DONE;
+            }
 		}
 	}
 }
