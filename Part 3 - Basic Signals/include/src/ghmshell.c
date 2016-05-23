@@ -58,11 +58,27 @@ static char *search_path[10];
 // Stores the path for the current working directory.
 char cwd_path[500];
 
+void setForeground(int pid) {
+    int status;
+    waitpid(pid, &status, WUNTRACED);
+    if (WIFSTOPPED(status)) {
+        printf("Stopped PID %d\n",pid);
+        printf(SHELLNAME);
+        fflush(stdout);
+    }
+}
+
 /* Function defined to deal with signals received during execution. */
 void handle_signal(int signo)
 {
-	printf(SHELLNAME);
-	fflush(stdout);
+    
+    printf("\n");
+    printf(SHELLNAME);
+    fflush(stdout);
+}
+/* Function defined to deal with signals received during execution. */
+void handle_signal_nothing(int signo)
+{
 }
 
 /* Function used to copy the content of argv to the local structure. A
@@ -274,7 +290,7 @@ void call_execve(char *cmd)
 		insertTail(jobs_list,createNode(cmd,forkResult,next_jid++,RUNNING));
 
 		if (backgroundExec == 0) {
-			waitpid(forkResult,NULL,0); // NULL implies a wait to any child
+            setForeground(forkResult); // put the process in foreground
 			// Reparar no status. Deve ser colocado como terminado
 			Node *node = findNode(jobs_list,next_jid-1);
 			node -> status = DONE;
@@ -313,6 +329,23 @@ void cleanup(char *tmp, char *path_str) {
 	emptyList(jobs_list);
 }
 
+void putInBackground() {
+    if (my_argv[1] == NULL) {
+        printf("usage: bg process_id|job_id\n");
+    } else {
+        printf("[debug] process to be in background: <%s>\n",my_argv[1]);
+    }
+}
+
+void putInForeground() {
+    if (my_argv[1] == NULL) {
+        printf("usage: fg process_id|job_id\n");
+    } else {
+        printf("[debug] process to be in foreground: <%s>\n",my_argv[1]);
+        setForeground(atoi(my_argv[1]));
+    }
+}
+
 int localCommand (char* command, char *tmp, char *path_str) {
 
     if(strncmp(command, "quit", 4) == 0 && strlen(command) == 4) {
@@ -330,9 +363,15 @@ int localCommand (char* command, char *tmp, char *path_str) {
     	call_execve(command);
     	return -1;
     } else if(strncmp(command, "pwd", 3) == 0 && strlen(command) == 3) {
-		printf("%s\n", getcwd(cwd_path, 500));
-		return -1;
-	}
+        printf("%s\n", getcwd(cwd_path, 500));
+        return -1;
+    } else if(strncmp(command, "bg", 2) == 0) {
+        putInBackground();
+        return -1;
+    } else if(strncmp(command, "fg", 2) == 0) {
+        putInForeground();
+        return -1;
+    }
     return 0;
 }
 
@@ -383,10 +422,12 @@ int main(int argc, char *argv[], char *envp[])
 	
 	// Ignores buffered signals
 	signal(SIGINT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
 
 	// Sets handle_signal to be the signal handler when new
 	// signals are received
 	signal(SIGINT, handle_signal);
+    signal(SIGTSTP, handle_signal_nothing);
 
 	jobs_list = initialize();
 
@@ -426,6 +467,9 @@ int main(int argc, char *argv[], char *envp[])
 					   fill_argv(tmp);
 					   //printArgs(tmp);
 
+                       // Disable background execution
+                       backgroundExec = 0;
+                       
 					   // Checks if the command's execution must be in the background
 					   checkBackgroundExecution();
 
@@ -455,6 +499,7 @@ int main(int argc, char *argv[], char *envp[])
                        // Clear the arguments, cmd, and repeat the shell
 					   free_argv();
 					   printf(SHELLNAME);
+                       fflush(stdin);
 					   bzero(cmd, 100);
 				   }
 				   bzero(tmp, 100);

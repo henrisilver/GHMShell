@@ -50,7 +50,7 @@ static char *search_path[10];
 /* Function defined to deal with signals received during execution. */
 void handle_signal(int signo)
 {
-	printf("\n[GHMSHELL ] ");
+	printf("\n[GHMSHELLRecv ] ");
 	fflush(stdout);
 }
 
