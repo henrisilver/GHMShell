@@ -60,12 +60,22 @@ char cwd_path[500];
 
 void setForeground(int pid) {
     int status;
+    kill(pid, SIGCONT);
+    Node *node = findNode(jobs_list, next_jid-1);
+    node -> status = RUNNING;
     waitpid(pid, &status, WUNTRACED);
     if (WIFSTOPPED(status)) {
-        printf("Stopped PID %d\n",pid);
-        printf(SHELLNAME);
+    	node -> status = STOPPED;
+        printf("\n[%d]+\tStopped\t\t%s\n", node->jid, node->processName);
+        fflush(stdout);
+    } else if (WIFSIGNALED(status)) {
+    	node->status = TERMINATED;
         fflush(stdout);
     }
+}
+
+void setBackground(int pid) {
+
 }
 
 /* Function defined to deal with signals received during execution. */
@@ -250,7 +260,7 @@ void update_jobs_status(){
 				} else if (WIFSIGNALED(status)) {
 					current -> status = TERMINATED;
               	} else if (WIFSTOPPED(status)) {
-              		// Do we have to do anything here?
+              		current -> status = STOPPED;
               	}
                 	
 			}
@@ -290,10 +300,18 @@ void call_execve(char *cmd)
 		insertTail(jobs_list,createNode(cmd,forkResult,next_jid++,RUNNING));
 
 		if (backgroundExec == 0) {
-            setForeground(forkResult); // put the process in foreground
+            int status;
+			waitpid(forkResult, &status, WUNTRACED); // NULL implies a wait to any child
 			// Reparar no status. Deve ser colocado como terminado
-			Node *node = findNode(jobs_list,next_jid-1);
-			node -> status = DONE;
+			Node *node = findNode(jobs_list, next_jid-1);
+			if (WIFSIGNALED(status)) {
+				node -> status = TERMINATED;
+            } else if (WIFSTOPPED(status)) {
+              	node -> status = STOPPED;
+              	printf("\n[%d]+\tStopped\t\t%s\n", node->jid, node->processName);
+            } else {
+            	node -> status = DONE;
+            }
 		}
 	}
 }
@@ -331,7 +349,7 @@ void cleanup(char *tmp, char *path_str) {
 
 void putInBackground() {
     if (my_argv[1] == NULL) {
-        printf("usage: bg process_id|job_id\n");
+        printf("usage: bg <process_id>\n");
     } else {
         printf("[debug] process to be in background: <%s>\n",my_argv[1]);
     }
@@ -339,7 +357,7 @@ void putInBackground() {
 
 void putInForeground() {
     if (my_argv[1] == NULL) {
-        printf("usage: fg process_id|job_id\n");
+        printf("usage: fg <process_id>\n");
     } else {
         printf("[debug] process to be in foreground: <%s>\n",my_argv[1]);
         setForeground(atoi(my_argv[1]));
