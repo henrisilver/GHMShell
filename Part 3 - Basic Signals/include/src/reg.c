@@ -129,8 +129,10 @@ void listToString(List *list){
 			printf("Running\n");
 		} else if(current -> status == DONE) {
 			printf("Done\n");
-		} else {
+		} else if (current -> status == TERMINATED){
 			printf("Terminated\n");
+		} else if (current -> status == STOPPED){
+			printf("Stopped\n");
 		}
 		printf("--------------------------\n");
 		current = current -> next;
