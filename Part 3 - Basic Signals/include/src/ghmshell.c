@@ -30,6 +30,8 @@
 
  #define SHELLNAME "[GHMSHELL] : %s $ ", cwd_path
 
+#define none 0
+
 /* Variable used to represent error codes. This variable is defined in
  * errno.h and is set by system call of library functions when there are
  * errors, indicating what went wrong.
@@ -40,6 +42,8 @@ extern int errno;
 // 0 -> NO
 // 1 -> YES
 int backgroundExec;
+
+int foregroundActual;
 
 /* Arrays of string that will be used:
  * my_argv: represents the argv that will be passed to the command that will
@@ -60,6 +64,8 @@ char cwd_path[500];
 
 void setForeground(int pid) {
     int status;
+    foregroundActual = pid;
+    kill(pid,SIGCONT);
     waitpid(pid, &status, WUNTRACED);
     if (WIFSTOPPED(status)) {
         printf("Stopped PID %d\n",pid);
@@ -69,17 +75,31 @@ void setForeground(int pid) {
 }
 
 /* Function defined to deal with signals received during execution. */
-void handle_signal(int signo)
+void handle_signal_ctrlc(int signo)
 {
-    
+    if (foregroundActual != 0)
+    {
+        kill(foregroundActual, SIGUSR1);
+    }
     printf("\n");
     printf(SHELLNAME);
     fflush(stdout);
 }
 /* Function defined to deal with signals received during execution. */
-void handle_signal_nothing(int signo)
+void handle_signal_ctrlz(int signo)
 {
+    if (foregroundActual != 0)
+    {
+        kill(foregroundActual, SIGUSR2);
+    }
 }
+
+/* Function defined to deal with signals received during execution. */
+void handle_signal_poepradormir(int signo)
+{
+    //kill(getpid(),SIG_IGN);
+}
+
 
 /* Function used to copy the content of argv to the local structure. A
  * string array is used, where each of the of the strings is one of the
@@ -274,8 +294,14 @@ void call_execve(char *cmd)
 	
 	int forkResult = fork();
 	if(forkResult == 0) {
-		// Child Process
-
+        // Child Process
+        signal(SIGTSTP, SIG_IGN);
+        signal(SIGINT, SIG_IGN);
+        signal(SIGUSR1, exit);
+        signal(SIGUSR2, handle_signal_poepradormir);
+        
+//        signal(SIGTSTP, handle_signal_nothing);
+//        signal(SIGKILL, handle_signal_nothing);
 		i = execve(cmd, my_argv, my_envp);
 		printf("errno is %d\n", errno);
 		if(i < 0) {
@@ -402,6 +428,9 @@ void printArgs(char *tmp){
 
 int main(int argc, char *argv[], char *envp[])
 {
+    
+    foregroundActual = 0;
+    
 	// Character used to read the user's input, character by character
 	char c;
 
@@ -426,8 +455,8 @@ int main(int argc, char *argv[], char *envp[])
 
 	// Sets handle_signal to be the signal handler when new
 	// signals are received
-	signal(SIGINT, handle_signal);
-    signal(SIGTSTP, handle_signal_nothing);
+	signal(SIGINT, handle_signal_ctrlc);
+    signal(SIGTSTP, handle_signal_ctrlz);
 
 	jobs_list = initialize();
 
