@@ -41,6 +41,8 @@ extern int errno;
 // 1 -> YES
 int backgroundExec;
 
+int foregroundActual = 0;
+
 /* Arrays of string that will be used:
  * my_argv: represents the argv that will be passed to the command that will
  * be executed (using a custom data structure instead of having a single string
@@ -66,6 +68,7 @@ void setForeground(int pid) {
     	printf("ERROR: Could not find process with pid = %d\n", pid);
     	return;
     }
+    foregroundActual = pid;
     node -> status = RUNNING;
     waitpid(pid, &status, WUNTRACED);
     if (WIFSTOPPED(status)) {
@@ -80,6 +83,7 @@ void setForeground(int pid) {
 
 void setBackground(int pid) {
 	int status;
+    foregroundActual = 0;
     kill(pid, SIGCONT);
     Node *node = findNodePid(jobs_list, pid);
     if(!node) {
@@ -90,20 +94,25 @@ void setBackground(int pid) {
 }
 
 /* Function defined to deal with signals received during execution. */
-void handle_signal(int signo)
-{
-    
+void handle_ctrlc(int signo) {
+    if (foregroundActual!=0) {
+        kill(foregroundActual, SIGKILL);
+    }
     printf("\n");
     printf(SHELLNAME);
     fflush(stdout);
 }
 /* Function defined to deal with signals received during execution. */
-void handle_signal_nothing(int signo)
-{
-	printf("\n");
-	printf(SHELLNAME);
+void handle_ctrlz(int signo) {
+    if (foregroundActual!=0) {
+        kill(foregroundActual, SIGSTOP);
+    }
+    printf("\n");
+    printf(SHELLNAME);
     fflush(stdout);
 }
+
+
 
 /* Function used to copy the content of argv to the local structure. A
  * string array is used, where each of the of the strings is one of the
@@ -299,11 +308,8 @@ void call_execve(char *cmd)
 	int forkResult = fork();
 	if(forkResult == 0) {
 		// Child Process
-
-		if(backgroundExec == 1) {
-			signal(SIGINT, SIG_IGN);
-    		signal(SIGTSTP, SIG_IGN);
-		}
+        signal(SIGINT, SIG_IGN);
+        signal(SIGTSTP, SIG_IGN);
 
 		i = execve(cmd, my_argv, my_envp);
 		printf("errno is %d\n", errno);
@@ -319,6 +325,7 @@ void call_execve(char *cmd)
 		insertTail(jobs_list,createNode(cmd,forkResult,next_jid++,RUNNING));
 
 		if (backgroundExec == 0) {
+            foregroundActual = forkResult;
             int status;
 			waitpid(forkResult, &status, WUNTRACED); // NULL implies a wait to any child
 			// Reparar no status. Deve ser colocado como terminado
@@ -331,7 +338,8 @@ void call_execve(char *cmd)
             } else {
             	node -> status = DONE;
             }
-		} 
+		}
+        else (foregroundActual = 0);
 	}
 }
 
@@ -459,13 +467,13 @@ int main(int argc, char *argv[], char *envp[])
 	char *cmd = (char *)malloc(sizeof(char) * 100);
 	
 	// Ignores buffered signals
-	signal(SIGINT, SIG_IGN);
-    signal(SIGTSTP, SIG_IGN);
+	//signal(SIGINT, SIG_IGN);
+    //signal(SIGTSTP, SIG_IGN);
 
 	// Sets handle_signal to be the signal handler when new
 	// signals are received
-	signal(SIGINT, handle_signal);
-    signal(SIGTSTP, handle_signal_nothing);
+	signal(SIGINT, handle_ctrlc);
+    signal(SIGTSTP, handle_ctrlz);
 
 	jobs_list = initialize();
 
