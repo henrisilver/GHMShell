@@ -97,6 +97,7 @@ void setBackground(int pid) {
 void handle_ctrlc(int signo) {
     if (foregroundActual!=0) {
         kill(foregroundActual, SIGKILL);
+        foregroundActual = 0;
     }
     printf("\n");
     printf(SHELLNAME);
@@ -106,6 +107,7 @@ void handle_ctrlc(int signo) {
 void handle_ctrlz(int signo) {
     if (foregroundActual!=0) {
         kill(foregroundActual, SIGSTOP);
+        foregroundActual = 0;
     }
     printf("\n");
     printf(SHELLNAME);
