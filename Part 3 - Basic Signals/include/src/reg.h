@@ -31,6 +31,7 @@ Node * createNode(char *processName, pid_t pid, int jid, int status);
 void insertTail(List *list, Node *node);
 int isEmpty(List *list);
 Node * findNode(List *list, int jid);
+Node * findNodePid(List *list, int pid);
 void listToString(List *list);
 void printDebug(char *TAG, char *message);
 void emptyList(List *list);

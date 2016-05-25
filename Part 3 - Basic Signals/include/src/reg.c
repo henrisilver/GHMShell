@@ -187,4 +187,29 @@ Node * findNode(List *list, int key){
 			return NULL;
 		}
 	}
+	return NULL;
+}
+
+Node * findNodePid(List *list, int key){
+
+	int listSize;
+	Node *current = NULL;
+	if (list != NULL){
+		listSize = list -> size;
+		if(listSize > 0){
+			current = list -> head;
+
+			while(current != NULL){
+				if(current -> pid == key){
+					return current;
+				}
+				else {
+					current = current -> next;
+				}
+			}
+		} else {
+			return NULL;
+		}
+	}
+	return NULL;
 }

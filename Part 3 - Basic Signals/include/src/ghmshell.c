@@ -61,7 +61,11 @@ char cwd_path[500];
 void setForeground(int pid) {
     int status;
     kill(pid, SIGCONT);
-    Node *node = findNode(jobs_list, next_jid-1);
+    Node *node = findNodePid(jobs_list, pid);
+    if(!node) {
+    	printf("ERROR: Could not find process with pid = %d\n", pid);
+    	return;
+    }
     node -> status = RUNNING;
     waitpid(pid, &status, WUNTRACED);
     if (WIFSTOPPED(status)) {
@@ -75,7 +79,14 @@ void setForeground(int pid) {
 }
 
 void setBackground(int pid) {
-
+	int status;
+    kill(pid, SIGCONT);
+    Node *node = findNodePid(jobs_list, pid);
+    if(!node) {
+    	printf("ERROR: Could not find process with pid = %d\n", pid);
+    	return;
+    }
+    node -> status = RUNNING;
 }
 
 /* Function defined to deal with signals received during execution. */
@@ -89,6 +100,9 @@ void handle_signal(int signo)
 /* Function defined to deal with signals received during execution. */
 void handle_signal_nothing(int signo)
 {
+	printf("\n");
+	printf(SHELLNAME);
+    fflush(stdout);
 }
 
 /* Function used to copy the content of argv to the local structure. A
@@ -286,6 +300,11 @@ void call_execve(char *cmd)
 	if(forkResult == 0) {
 		// Child Process
 
+		if(backgroundExec == 1) {
+			signal(SIGINT, SIG_IGN);
+    		signal(SIGTSTP, SIG_IGN);
+		}
+
 		i = execve(cmd, my_argv, my_envp);
 		printf("errno is %d\n", errno);
 		if(i < 0) {
@@ -312,7 +331,7 @@ void call_execve(char *cmd)
             } else {
             	node -> status = DONE;
             }
-		}
+		} 
 	}
 }
 
@@ -352,6 +371,7 @@ void putInBackground() {
         printf("usage: bg <process_id>\n");
     } else {
         printf("[debug] process to be in background: <%s>\n",my_argv[1]);
+        setBackground(atoi(my_argv[1]));
     }
 }
 
@@ -502,7 +522,7 @@ int main(int argc, char *argv[], char *envp[])
                                if(attach_path(cmd) == 0) {
                                    call_execve(cmd);
                                } else {
-                                   printf("%s: command not found1\n", cmd);
+                                   printf("%s: command not found\n", cmd);
                                }
                                // Else, directly execute the command
                            } else {
