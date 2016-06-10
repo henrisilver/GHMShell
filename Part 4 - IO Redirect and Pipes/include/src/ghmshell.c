@@ -62,17 +62,25 @@ static char *search_path[10];
 // Stores the path for the current working directory.
 char cwd_path[500];
 
-void setForeground(int pid) {
+void setForeground(int pid, int isJID) {
+	printf("isjid: %d - id: %d\n", isJID, pid);
     int status;
-    kill(pid, SIGCONT);
-    Node *node = findNodePid(jobs_list, pid);
+    Node *node;
+
+    if(isJID) {
+    	node = findNode(jobs_list, pid);
+    } else {
+    	node = findNodePid(jobs_list, pid);
+	}
+
     if(!node) {
     	printf("ERROR: Could not find process with pid = %d\n", pid);
     	return;
     }
-    foregroundActual = pid;
+    kill(node->pid, SIGCONT);
+    foregroundActual = node -> pid;
     node -> status = RUNNING;
-    waitpid(pid, &status, WUNTRACED);
+    waitpid(node->pid, &status, WUNTRACED);
     if (WIFSTOPPED(status)) {
     	node -> status = STOPPED;
         printf("\n[%d]+\tStopped\t\t%s\n", node->jid, node->processName);
@@ -83,28 +91,35 @@ void setForeground(int pid) {
     }
 }
 
-void setBackground(int pid) {
+void setBackground(int pid, int isJID) {
 	int status;
     foregroundActual = 0;
-    kill(pid, SIGCONT);
-    Node *node = findNodePid(jobs_list, pid);
+    Node *node;
+
+    if(isJID) {
+    	node = findNode(jobs_list, pid);
+    } else {
+   		node = findNodePid(jobs_list, pid);
+   	}
     if(!node) {
     	printf("ERROR: Could not find process with pid = %d\n", pid);
     	return;
     }
+    kill(node->pid, SIGCONT);
     node -> status = RUNNING;
 }
 
 /* Function defined to deal with signals received during execution. */
 void handle_ctrlc(int signo) {
     if (foregroundActual!=0) {
-        kill(foregroundActual, SIGKILL);
+        kill(-getpgid(foregroundActual), SIGKILL);
         foregroundActual = 0;
     }
     printf("\n");
     printf(SHELLNAME);
     fflush(stdout);
 }
+
 /* Function defined to deal with signals received during execution. */
 void handle_ctrlz(int signo) {
     if (foregroundActual!=0) {
@@ -115,8 +130,6 @@ void handle_ctrlz(int signo) {
     printf(SHELLNAME);
     fflush(stdout);
 }
-
-
 
 /* Function used to copy the content of argv to the local structure. A
  * string array is used, where each of the of the strings is one of the
@@ -342,12 +355,13 @@ void call_execve(char *cmd)
 		}
 	} else {
 		// Father Process
-
+		setpgid(forkResult, forkResult);
 		// Inserir na lista
 		insertTail(jobs_list,createNode(cmd,forkResult,next_jid++,RUNNING));
 
 		if (backgroundExec == 0) {
             foregroundActual = forkResult;
+            //printf("\n\ncmd: %s\nfga: %d\n\n", cmd, foregroundActual);
             int status;
 			waitpid(forkResult, &status, WUNTRACED); // NULL implies a wait to any child
 			// Reparar no status. Deve ser colocado como terminado
@@ -400,8 +414,34 @@ void putInBackground() {
     if (my_argv[1] == NULL) {
         printf("usage: bg <process_id>\n");
     } else {
-        printf("[debug] process to be in background: <%s>\n",my_argv[1]);
-        setBackground(atoi(my_argv[1]));
+    	int isJID;
+    	char *id;
+    	Node *job = NULL;
+    	if(index(my_argv[1], '%')!= NULL) {
+    		isJID = 1;
+    		if(strlen(my_argv[1]) == 1 && my_argv[2] != NULL) {
+    			id = my_argv[2];
+    		} else {
+    			id = my_argv[1];
+    			id++;
+    		}
+    		job = findNode(jobs_list, atoi(id));
+    	}
+    	else {
+    		isJID = 0;
+    		id = my_argv[1];
+    		job = findNodePid(jobs_list, atoi(id));
+    	}
+    	if(job) {
+        	printf("[debug] process to be in background: <%s>\n",id);
+        	setBackground(atoi(id), isJID);
+        } else {
+    		if(isJID) {
+    			printf("Invalid JID: %d\n", atoi(id));
+    		} else {
+    			printf("Invalid PID: %d\n", atoi(id));
+    		}
+    	}
     }
 }
 
@@ -409,14 +449,53 @@ void putInForeground() {
     if (my_argv[1] == NULL) {
         printf("usage: fg <process_id>\n");
     } else {
-        printf("[debug] process to be in foreground: <%s>\n",my_argv[1]);
-        setForeground(atoi(my_argv[1]));
+    	int isJID;
+    	char *id;
+    	Node *job = NULL;
+    	if(index(my_argv[1], '%')!= NULL) {
+    		isJID = 1;
+    			printf("arg[1]: %s\n", my_argv[1]);
+    		if(strlen(my_argv[1]) == 1 && my_argv[2] != NULL) {
+    			printf("arg[2]: %s\n", my_argv[2]);
+    			id = my_argv[2];
+    		} else {
+    			id = my_argv[1];
+    			id++;
+    		}
+       		printf("id: %s\n", id);
+    		job = findNode(jobs_list, atoi(id));
+    	}
+    	else {
+    		isJID = 0;
+    		id = my_argv[1];
+    		job = findNodePid(jobs_list, atoi(id));
+    	}
+    	if(job) {
+       		printf("[debug] process to be in foreground: <%s>\n",id);
+        	setForeground(atoi(id), isJID);
+    	} else {
+    		if(isJID) {
+    			printf("Invalid JID: %d\n", atoi(id));
+    		} else {
+    			printf("Invalid PID: %d\n", atoi(id));
+    		}
+    	}
     }
 }
 
 int localCommand (char* command, char *tmp, char *path_str) {
 
     if(strncmp(command, "quit", 4) == 0 && strlen(command) == 4) {
+    	Node * current = NULL;
+		int pid;
+		if (jobs_list != NULL){
+			current = jobs_list -> head;
+			while(current != NULL){
+				pid = current->pid;
+				kill(-pid, SIGKILL);
+				current = current -> next;
+        	}
+		}
         free_argv();
         cleanup(tmp, path_str);
         exit(0);
