@@ -40,6 +40,8 @@ extern int errno;
 // 0 -> NO
 // 1 -> YES
 int backgroundExec;
+char outputExec[100];
+int outputExecType = 0;
 
 int foregroundActual = 0;
 
@@ -313,6 +315,24 @@ void call_execve(char *cmd)
         signal(SIGINT, SIG_IGN);
         signal(SIGTSTP, SIG_IGN);
 
+        if (outputExecType==1)
+        {
+            FILE* out = fopen(outputExec,"a+");
+            fflush(stdout);
+            dup2(fileno(out),fileno(stdout));
+        }
+        if (outputExecType==2)
+        {
+            FILE* out = fopen(outputExec,"w");
+            fflush(stdout);
+            dup2(fileno(out),fileno(stdout));
+        }
+        if (outputExecType==3)
+        {
+            FILE* out = fopen(outputExec,"w");
+            fflush(stderr);
+            dup2(fileno(out),fileno(stderr));
+        }
 		i = execve(cmd, my_argv, my_envp);
 		printf("errno is %d\n", errno);
 		if(i < 0) {
@@ -443,6 +463,121 @@ void checkBackgroundExecution() {
 	}
 }
 
+void checkOutputExecution2() {
+    int index, done = 0;
+    char* out;
+    for(index=0;my_argv[index]!=NULL && !done;index++) {
+        if(strcmp(my_argv[index], ">>") == 0) {
+            outputExecType = 1;
+            strcpy(outputExec, my_argv[index+1]);
+            free(my_argv[index]);
+            free(my_argv[index+1]); //sempre funciona?
+            my_argv[index] = NULL;
+            done = 1;
+            printf("Redirecionado para %s\n", outputExec);
+        } else if(strncmp(my_argv[index], ">>",2) == 0) {
+            outputExecType = 1;
+            strcpy(outputExec, &my_argv[index][2]);
+            free(my_argv[index]);
+            my_argv[index] = NULL;
+            done = 1;
+            printf("Redirecionado para %s\n", outputExec);
+        } else if(strncmp(&my_argv[index][strlen(my_argv[index]) - 2],">>",2) == 0) {
+            outputExecType = 1;
+            strcpy(outputExec, my_argv[index+1]);
+            my_argv[index][strlen(my_argv[index]) - 2] = '\0';
+            //free(my_argv[index+1];
+            my_argv[index+1] = NULL;
+            done = 1;
+            printf("Redirecionado(2) para %s\n", outputExec);
+        }
+        else if((out = strstr(my_argv[index],">>")) != 0) {
+            outputExecType = 1;
+            strcpy(outputExec, &out[2]);
+            *out = '\0';
+            done = 1;
+            printf("Redirecionado(3) para %s\n", outputExec);
+        }
+    }
+}
+
+void checkOutputExecution() {
+    int index, done = 0;
+    char* out;
+    for(index=0;my_argv[index]!=NULL && !done;index++) {
+        if(strcmp(my_argv[index], ">") == 0) {
+            outputExecType = 2;
+            strcpy(outputExec, my_argv[index+1]);
+            free(my_argv[index]);
+            free(my_argv[index+1]); //sempre funciona?
+            my_argv[index] = NULL;
+            done = 1;
+            printf("Redirecionado para %s\n", outputExec);
+        } else if(strncmp(my_argv[index], ">",2) == 0) {
+            outputExecType = 2;
+            strcpy(outputExec, &my_argv[index][2]);
+            free(my_argv[index]);
+            my_argv[index] = NULL;
+            done = 1;
+            printf("Redirecionado para %s\n", outputExec);
+        } else if(strncmp(&my_argv[index][strlen(my_argv[index]) - 2],">",2) == 0) {
+            outputExecType = 2;
+            strcpy(outputExec, my_argv[index+1]);
+            my_argv[index][strlen(my_argv[index]) - 2] = '\0';
+            //free(my_argv[index+1];
+            my_argv[index+1] = NULL;
+            done = 1;
+            printf("Redirecionado(2) para %s\n", outputExec);
+        }
+        else if((out = strstr(my_argv[index],">")) != 0) {
+            outputExecType = 2;
+            strcpy(outputExec, &out[2]);
+            *out = '\0';
+            done = 1;
+            printf("Redirecionado(3) para %s\n", outputExec);
+        }
+    }
+}
+
+void checkOutputExecution3() {
+    int index, done = 0;
+    char* out;
+    for(index=0;my_argv[index]!=NULL && !done;index++) {
+        if(strcmp(my_argv[index], "2>") == 0) {
+            outputExecType = 2;
+            strcpy(outputExec, my_argv[index+1]);
+            free(my_argv[index]);
+            free(my_argv[index+1]); //sempre funciona?
+            my_argv[index] = NULL;
+            done = 1;
+            printf("Redirecionado error para %s\n", outputExec);
+        } else if(strncmp(my_argv[index], "2>",2) == 0) {
+            outputExecType = 2;
+            strcpy(outputExec, &my_argv[index][2]);
+            free(my_argv[index]);
+            my_argv[index] = NULL;
+            done = 1;
+            printf("Redirecionado error para %s\n", outputExec);
+        } else if(strncmp(&my_argv[index][strlen(my_argv[index]) - 2],"2>",2) == 0) {
+            outputExecType = 2;
+            strcpy(outputExec, my_argv[index+1]);
+            my_argv[index][strlen(my_argv[index]) - 2] = '\0';
+            //free(my_argv[index+1];
+            my_argv[index+1] = NULL;
+            done = 1;
+            printf("Redirecionado(2) error para %s\n", outputExec);
+        }
+        else if((out = strstr(my_argv[index],"2>")) != 0) {
+            outputExecType = 2;
+            strcpy(outputExec, &out[2]);
+            *out = '\0';
+            done = 1;
+            printf("Redirecionado(3) error para %s\n", outputExec);
+        }
+    }
+}
+
+
 void printArgs(char *tmp){
 	int i = 0;
 	printf("%s\n", tmp);
@@ -520,6 +655,18 @@ int main(int argc, char *argv[], char *envp[])
                        
 					   // Checks if the command's execution must be in the background
 					   checkBackgroundExecution();
+                       
+                       // Disable output execution
+                       strcpy(outputExec,"");
+                       outputExecType = 0;
+                       
+                       // Check if the output is redirected
+                       if (outputExecType == 0)
+                           checkOutputExecution3();
+                       if (outputExecType == 0)
+                           checkOutputExecution2();
+                       if (outputExecType == 0)
+                           checkOutputExecution();
 
                        // Copy the first argument to the cmd (name of file)
                        // and insert '\0'
