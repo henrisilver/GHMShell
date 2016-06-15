@@ -607,17 +607,17 @@ void checkOutputExecution() {
             my_argv[index] = NULL;
             done = 1;
             printf("Redirecionado para %s\n", outputFileName);
-        } else if(strncmp(my_argv[index], ">",2) == 0) {
+        } else if(strncmp(my_argv[index], ">",1) == 0) {
             outputExecType = 2;
-            strcpy(outputFileName, &my_argv[index][2]);
+            strcpy(outputFileName, &my_argv[index][1]);
             free(my_argv[index]);
             my_argv[index] = NULL;
             done = 1;
             printf("Redirecionado para %s\n", outputFileName);
-        } else if(strncmp(&my_argv[index][strlen(my_argv[index]) - 2],">",2) == 0) {
+        } else if(strncmp(&my_argv[index][strlen(my_argv[index]) - 1],">",1) == 0) {
             outputExecType = 2;
             strcpy(outputFileName, my_argv[index+1]);
-            my_argv[index][strlen(my_argv[index]) - 2] = '\0';
+            my_argv[index][strlen(my_argv[index]) - 1] = '\0';
             //free(my_argv[index+1];
             my_argv[index+1] = NULL;
             done = 1;
@@ -625,7 +625,7 @@ void checkOutputExecution() {
         }
         else if((out = strstr(my_argv[index],">")) != 0) {
             outputExecType = 2;
-            strcpy(outputFileName, &out[2]);
+            strcpy(outputFileName, &out[1]);
             *out = '\0';
             done = 1;
             printf("Redirecionado(3) para %s\n", outputFileName);
