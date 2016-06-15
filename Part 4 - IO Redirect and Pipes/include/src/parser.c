@@ -55,7 +55,7 @@ char ** parseCommand(char *command, int *num_commands) {
     // of commands. So *num_commands is initialized to 1.
     *num_commands = 1;
 
-    // Determines the amount if sub-commands
+    // Determines the amount of sub-commands
     while (command[i++] != '\0') {
         if(command[i] == '|') {
             (*num_commands)++;
@@ -69,6 +69,7 @@ char ** parseCommand(char *command, int *num_commands) {
     // Actual parsing for-loop
     for (j = 0 ; j < *num_commands ; j++) {
         size = 0;
+        // (char) 123 equals to '|'
         while (command[i] != (char)124 && command[i] != '\0') {
             temp_command[size++] = command[i++];
         }

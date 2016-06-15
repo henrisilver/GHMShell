@@ -40,8 +40,12 @@ extern int errno;
 // 0 -> NO
 // 1 -> YES
 int backgroundExec;
-char outputExec[100];
+char outputFileName[100];
+char inputFileName[100];
 int outputExecType = 0;
+int inputExecType = 0;
+int num_commands = 0;
+char **command_list;
 
 int foregroundActual = 0;
 
@@ -215,7 +219,6 @@ void get_path_string(char **tmp_envp, char *bin_path)
 			count++;
 		}
 	}
-    
 }
 
 /* Insert the PATHs found in the path_str into the
@@ -309,7 +312,6 @@ void update_jobs_status(){
 	}
 }
 
-
 /* Function acts as wrapper to the whole process of forking the
  * shell and also checking if the call to execve was sucessful */
 void call_execve(char *cmd)
@@ -330,22 +332,33 @@ void call_execve(char *cmd)
 
         if (outputExecType==1)
         {
-            FILE* out = fopen(outputExec,"a+");
+            FILE* out = fopen(outputFileName,"a+");
             fflush(stdout);
             dup2(fileno(out),fileno(stdout));
+            fclose(out);
         }
-        if (outputExecType==2)
+        else if (outputExecType==2)
         {
-            FILE* out = fopen(outputExec,"w");
+            FILE* out = fopen(outputFileName,"w");
             fflush(stdout);
             dup2(fileno(out),fileno(stdout));
+            fclose(out);
         }
-        if (outputExecType==3)
+        else if (outputExecType==3)
         {
-            FILE* out = fopen(outputExec,"w");
+            FILE* out = fopen(outputFileName,"w");
             fflush(stderr);
             dup2(fileno(out),fileno(stderr));
+            fclose(out);
         }
+
+        if(inputExecType==1) {
+        	FILE* in = fopen(inputFileName, "r");
+        	fflush(stdin);
+        	dup2(fileno(in), fileno(stdin));
+        	fclose(in);
+        }
+
 		i = execve(cmd, my_argv, my_envp);
 		printf("errno is %d\n", errno);
 		if(i < 0) {
@@ -375,7 +388,9 @@ void call_execve(char *cmd)
             	node -> status = DONE;
             }
 		}
-        else (foregroundActual = 0);
+        else {
+        	foregroundActual = 0;
+        }
 	}
 }
 
@@ -548,34 +563,34 @@ void checkOutputExecution2() {
     for(index=0;my_argv[index]!=NULL && !done;index++) {
         if(strcmp(my_argv[index], ">>") == 0) {
             outputExecType = 1;
-            strcpy(outputExec, my_argv[index+1]);
+            strcpy(outputFileName, my_argv[index+1]);
             free(my_argv[index]);
             free(my_argv[index+1]); //sempre funciona?
             my_argv[index] = NULL;
             done = 1;
-            printf("Redirecionado para %s\n", outputExec);
+            printf("Redirecionado para %s\n", outputFileName);
         } else if(strncmp(my_argv[index], ">>",2) == 0) {
             outputExecType = 1;
-            strcpy(outputExec, &my_argv[index][2]);
+            strcpy(outputFileName, &my_argv[index][2]);
             free(my_argv[index]);
             my_argv[index] = NULL;
             done = 1;
-            printf("Redirecionado para %s\n", outputExec);
+            printf("Redirecionado para %s\n", outputFileName);
         } else if(strncmp(&my_argv[index][strlen(my_argv[index]) - 2],">>",2) == 0) {
             outputExecType = 1;
-            strcpy(outputExec, my_argv[index+1]);
+            strcpy(outputFileName, my_argv[index+1]);
             my_argv[index][strlen(my_argv[index]) - 2] = '\0';
             //free(my_argv[index+1];
             my_argv[index+1] = NULL;
             done = 1;
-            printf("Redirecionado(2) para %s\n", outputExec);
+            printf("Redirecionado(2) para %s\n", outputFileName);
         }
         else if((out = strstr(my_argv[index],">>")) != 0) {
             outputExecType = 1;
-            strcpy(outputExec, &out[2]);
+            strcpy(outputFileName, &out[2]);
             *out = '\0';
             done = 1;
-            printf("Redirecionado(3) para %s\n", outputExec);
+            printf("Redirecionado(3) para %s\n", outputFileName);
         }
     }
 }
@@ -586,34 +601,34 @@ void checkOutputExecution() {
     for(index=0;my_argv[index]!=NULL && !done;index++) {
         if(strcmp(my_argv[index], ">") == 0) {
             outputExecType = 2;
-            strcpy(outputExec, my_argv[index+1]);
+            strcpy(outputFileName, my_argv[index+1]);
             free(my_argv[index]);
             free(my_argv[index+1]); //sempre funciona?
             my_argv[index] = NULL;
             done = 1;
-            printf("Redirecionado para %s\n", outputExec);
+            printf("Redirecionado para %s\n", outputFileName);
         } else if(strncmp(my_argv[index], ">",2) == 0) {
             outputExecType = 2;
-            strcpy(outputExec, &my_argv[index][2]);
+            strcpy(outputFileName, &my_argv[index][2]);
             free(my_argv[index]);
             my_argv[index] = NULL;
             done = 1;
-            printf("Redirecionado para %s\n", outputExec);
+            printf("Redirecionado para %s\n", outputFileName);
         } else if(strncmp(&my_argv[index][strlen(my_argv[index]) - 2],">",2) == 0) {
             outputExecType = 2;
-            strcpy(outputExec, my_argv[index+1]);
+            strcpy(outputFileName, my_argv[index+1]);
             my_argv[index][strlen(my_argv[index]) - 2] = '\0';
             //free(my_argv[index+1];
             my_argv[index+1] = NULL;
             done = 1;
-            printf("Redirecionado(2) para %s\n", outputExec);
+            printf("Redirecionado(2) para %s\n", outputFileName);
         }
         else if((out = strstr(my_argv[index],">")) != 0) {
             outputExecType = 2;
-            strcpy(outputExec, &out[2]);
+            strcpy(outputFileName, &out[2]);
             *out = '\0';
             done = 1;
-            printf("Redirecionado(3) para %s\n", outputExec);
+            printf("Redirecionado(3) para %s\n", outputFileName);
         }
     }
 }
@@ -624,42 +639,143 @@ void checkOutputExecution3() {
     for(index=0;my_argv[index]!=NULL && !done;index++) {
         if(strcmp(my_argv[index], "2>") == 0) {
             outputExecType = 2;
-            strcpy(outputExec, my_argv[index+1]);
+            strcpy(outputFileName, my_argv[index+1]);
             free(my_argv[index]);
             free(my_argv[index+1]); //sempre funciona?
             my_argv[index] = NULL;
             done = 1;
-            printf("Redirecionado error para %s\n", outputExec);
+            printf("Redirecionado error para %s\n", outputFileName);
         } else if(strncmp(my_argv[index], "2>",2) == 0) {
             outputExecType = 2;
-            strcpy(outputExec, &my_argv[index][2]);
+            strcpy(outputFileName, &my_argv[index][2]);
             free(my_argv[index]);
             my_argv[index] = NULL;
             done = 1;
-            printf("Redirecionado error para %s\n", outputExec);
+            printf("Redirecionado error para %s\n", outputFileName);
         } else if(strncmp(&my_argv[index][strlen(my_argv[index]) - 2],"2>",2) == 0) {
             outputExecType = 2;
-            strcpy(outputExec, my_argv[index+1]);
+            strcpy(outputFileName, my_argv[index+1]);
             my_argv[index][strlen(my_argv[index]) - 2] = '\0';
             //free(my_argv[index+1];
             my_argv[index+1] = NULL;
             done = 1;
-            printf("Redirecionado(2) error para %s\n", outputExec);
+            printf("Redirecionado(2) error para %s\n", outputFileName);
         }
         else if((out = strstr(my_argv[index],"2>")) != 0) {
             outputExecType = 2;
-            strcpy(outputExec, &out[2]);
+            strcpy(outputFileName, &out[2]);
             *out = '\0';
             done = 1;
-            printf("Redirecionado(3) error para %s\n", outputExec);
+            printf("Redirecionado(3) error para %s\n", outputFileName);
         }
     }
 }
 
+void checkInputExecution() {
+    int index, done = 0;
+    char* out;
+    for(index=0;my_argv[index]!=NULL && !done;index++) {
+        if(strcmp(my_argv[index], "<") == 0) {
+            inputExecType = 1;
+            strcpy(inputFileName, my_argv[index+1]);
+            free(my_argv[index]);
+            free(my_argv[index+1]); //sempre funciona?
+            my_argv[index] = NULL;
+            done = 1;
+            printf("Redirecionado input para %s\n", outputFileName);
+        } else if(strncmp(my_argv[index], "<",1) == 0) {
+            inputExecType = 1;
+            strcpy(inputFileName, &my_argv[index][1]);
+            free(my_argv[index]);
+            my_argv[index] = NULL;
+            done = 1;
+            printf("Redirecionado input para %s\n", outputFileName);
+        } else if(strncmp(&my_argv[index][strlen(my_argv[index]) - 1],"<",1) == 0) {
+            inputExecType = 1;
+            strcpy(inputFileName, my_argv[index+1]);
+            my_argv[index][strlen(my_argv[index]) - 1] = '\0';
+            //free(my_argv[index+1];
+            my_argv[index+1] = NULL;
+            done = 1;
+            printf("Redirecionado(2) input para %s\n", outputFileName);
+        }
+        else if((out = strstr(my_argv[index],"<")) != 0) {
+            inputExecType = 1;
+            strcpy(inputFileName, &out[1]);
+            *out = '\0';
+            done = 1;
+            printf("Redirecionado(3) input para %s\n", outputFileName);
+        }
+    }
+}
 
 void printArgs(char *tmp){
 	int i = 0;
 	printf("%s\n", tmp);
+}
+
+// Checks if there is any '|'' char
+// Returns NULL in case there isn't any
+char * isParseRequired(char *string){
+    return strchr(string,'|');
+}
+
+// Split the received command into sub-commands
+// Returns a matrix where each line corresponds to a sub-command
+// Empty sub-commands are not handled
+char ** parseCommand(char *command, int *num_commands) {
+
+    // Size of each sub-command
+    int size = 0;
+
+    // J is used to iterate through each line in the commands matrix
+    int j = 0;
+
+    // i is used to iterate through each character of the command
+    int i = 0;
+
+    // Matrix that holds the parsed sub-commands
+    char **commands = NULL;
+
+    // Temporary string used as a helper in the parsing process
+    char temp_command[100];
+
+    // There is always a first command followed by a unknown number
+    // of commands. So *num_commands is initialized to 1.
+    *num_commands = 1;
+
+    // Determines the amount of sub-commands
+    while (command[i++] != '\0') {
+        if(command[i] == '|') {
+            (*num_commands)++;
+        }
+    }
+
+    // Allocation of the sub-commands matrix
+    commands = (char **) calloc(*num_commands,sizeof(char *));
+
+    i = 0;
+    // Actual parsing for-loop
+    for (j = 0 ; j < *num_commands ; j++) {
+        size = 0;
+        // (char) 123 equals to '|'
+        while (command[i] != (char)124 && command[i] != '\0') {
+            temp_command[size++] = command[i++];
+        }
+        temp_command[size] = '\0';
+        i++;
+
+        // This loop removes any white spaces after a pipe char ('|')
+        while(command[i] == ' ')
+            i++;
+
+        commands[j] = (char *)calloc(size+1, sizeof(char));
+        strcpy(commands[j],temp_command);
+
+        bzero(&temp_command[0], sizeof(char));
+    }
+
+    return commands;
 }
 
 int main(int argc, char *argv[], char *envp[])
@@ -706,6 +822,8 @@ int main(int argc, char *argv[], char *envp[])
 
 	getcwd(cwd_path, 500);
 
+	int i;
+
     // Fork and execute the file to clear the terminal
 	if(fork() == 0) {
 		execve("/usr/bin/clear", argv, my_envp);
@@ -725,56 +843,71 @@ int main(int argc, char *argv[], char *envp[])
                        // Print the terminal label if there is no command
 					   printf(SHELLNAME);
 				   } else {
-                       // Copy the arguments of the command to my_argv array
-					   fill_argv(tmp);
-					   //printArgs(tmp);
 
-                       // Disable background execution
-                       backgroundExec = 0;
-                       
-					   // Checks if the command's execution must be in the background
-					   checkBackgroundExecution();
-                       
-                       // Disable output execution
-                       strcpy(outputExec,"");
-                       outputExecType = 0;
-                       
-                       // Check if the output is redirected
-                       if (outputExecType == 0)
-                           checkOutputExecution3();
-                       if (outputExecType == 0)
-                           checkOutputExecution2();
-                       if (outputExecType == 0)
-                           checkOutputExecution();
+				   		num_commands = 0;
+    					
+       					command_list = parseCommand(tmp, &num_commands);
+    					
+    					for(i = 0; i < num_commands; i++) {
+	                       // Copy the arguments of the command to my_argv array
+						   fill_argv(command_list[i]);
+						   //printArgs(tmp);
 
-                       // Copy the first argument to the cmd (name of file)
-                       // and insert '\0'
-					   strncpy(cmd, my_argv[0], strlen(my_argv[0]));
-					   strncat(cmd, "\0", 1);
-                       // If there is no '/' in the beginning of the command, 
-                       // attach the path and execute
-                       if (localCommand(cmd, tmp, path_str)==0) {
-                           if(index(cmd, '/') == NULL) {
-                               if(attach_path(cmd) == 0) {
-                                   call_execve(cmd);
-                               } else {
-                                   printf("%s: command not found\n", cmd);
-                               }
-                               // Else, directly execute the command
-                           } else {
-                               if((fd = open(cmd, O_RDONLY)) > 0) {
-                                   close(fd);
-                                   call_execve(cmd);
-                               } else {
-                                   printf("%s: command not found\n", cmd);
-                               }
-                           }
-                       }
-                       // Clear the arguments, cmd, and repeat the shell
-					   free_argv();
-					   printf(SHELLNAME);
-                       fflush(stdin);
-					   bzero(cmd, 100);
+	                       // Disable background execution
+	                       backgroundExec = 0;
+	                       
+						   // Checks if the command's execution must be in the background
+						   checkBackgroundExecution();
+	                       
+	                       // Disable input and output redirection
+	                       strcpy(outputFileName,"");
+	                       strcpy(inputFileName,"");
+	                       outputExecType = 0;
+	                       inputExecType = 0;
+	                       
+	                       // Check if the output is redirected
+	                       if (outputExecType == 0)
+	                           checkOutputExecution3();
+	                       if (outputExecType == 0)
+	                           checkOutputExecution2();
+	                       if (outputExecType == 0)
+	                           checkOutputExecution();
+
+	                       checkInputExecution();
+
+	                       // Copy the first argument to the cmd (name of file)
+	                       // and insert '\0'
+						   strncpy(cmd, my_argv[0], strlen(my_argv[0]));
+						   strncat(cmd, "\0", 1);
+	                       // If there is no '/' in the beginning of the command, 
+	                       // attach the path and execute
+	                       if (localCommand(cmd, command_list[i], path_str)==0) {
+	                           if(index(cmd, '/') == NULL) {
+	                               if(attach_path(cmd) == 0) {
+	                                   call_execve(cmd);
+	                               } else {
+	                                   printf("%s: command not found\n", cmd);
+	                               }
+	                               // Else, directly execute the command
+	                           } else {
+	                               if((fd = open(cmd, O_RDONLY)) > 0) {
+	                                   close(fd);
+	                                   call_execve(cmd);
+	                               } else {
+	                                   printf("%s: command not found\n", cmd);
+	                               }
+	                           }
+	                       }
+	                       // Clear the arguments, cmd, and repeat the shell
+						   free_argv();
+						   printf(SHELLNAME);
+	                       fflush(stdin);
+						   bzero(cmd, 100);
+						}
+						for(i = 0; i < num_commands; i++) {
+							free(command_list[i]);
+						}
+						free(command_list);
 				   }
 				   bzero(tmp, 100);
 				   break;
