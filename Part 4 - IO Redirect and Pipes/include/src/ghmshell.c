@@ -67,7 +67,7 @@ static char *search_path[10];
 char cwd_path[500];
 
 void setForeground(int pid, int isJID) {
-	printf("isjid: %d - id: %d\n", isJID, pid);
+	//printf("isjid: %d - id: %d\n", isJID, pid);
     int status;
     Node *node;
 
@@ -168,7 +168,7 @@ void fill_argv(char *tmp_argv)
 			}
 			// Copies the argument
 			strncpy(my_argv[index], ret, strlen(ret));
-			strncat(my_argv[index], "\0", 1);
+			my_argv[index][strlen(ret)] = '\0';
 			bzero(ret, 100);
 			index++;
 		} 
@@ -183,7 +183,7 @@ void fill_argv(char *tmp_argv)
 	// end of the tmp_argv.
 	my_argv[index] = (char *)malloc(sizeof(char) * strlen(ret) + 1);
 	strncpy(my_argv[index], ret, strlen(ret));
-	strncat(my_argv[index], "\0", 1);
+	my_argv[index][strlen(ret)] = '\0';
 }
 
 /* Copies the envp values received by the main function to the my_envp
@@ -247,7 +247,7 @@ void insert_path_str_to_search(char *path_str)
 			strncat(ret, "/", 1);
 			search_path[index] = (char *) malloc(sizeof(char) * (strlen(ret) + 1));
 			strncat(search_path[index], ret, strlen(ret));
-			strncat(search_path[index], "\0", 1);
+			search_path[index][strlen(ret)] = '\0';
 			index++;
 			bzero(ret, 100);
 		} else {
@@ -261,7 +261,7 @@ void insert_path_str_to_search(char *path_str)
 	strncat(ret, "/", 1);
 	search_path[index] = (char *) malloc(sizeof(char) * (strlen(ret) + 1));
 	strncat(search_path[index], ret, strlen(ret));
-	strncat(search_path[index], "\0", 1);
+	search_path[index][strlen(ret)] = '\0';
 }
 
 /* Attach the PATHs in the list to the command, to test if the
@@ -322,6 +322,8 @@ void call_execve(char *cmd)
 		return;
 	} 
 
+	int index;
+
 	int i; // Control variable (Stores execve return value)
 	
 	int forkResult = fork();
@@ -354,9 +356,13 @@ void call_execve(char *cmd)
 
         if(inputExecType==1) {
         	FILE* in = fopen(inputFileName, "r");
-        	fflush(stdin);
-        	dup2(fileno(in), fileno(stdin));
-        	fclose(in);
+        	if(!in) {
+        		perror(inputFileName);
+        	} else {
+        		fflush(stdin);
+        		dup2(fileno(in), fileno(stdin));
+        		fclose(in);
+        	}
         }
 
 		i = execve(cmd, my_argv, my_envp);
@@ -567,6 +573,7 @@ void checkOutputExecution2() {
             free(my_argv[index]);
             free(my_argv[index+1]); //sempre funciona?
             my_argv[index] = NULL;
+            my_argv[index+1] = NULL;
             done = 1;
             printf("Redirecionado para %s\n", outputFileName);
         } else if(strncmp(my_argv[index], ">>",2) == 0) {
@@ -580,7 +587,7 @@ void checkOutputExecution2() {
             outputExecType = 1;
             strcpy(outputFileName, my_argv[index+1]);
             my_argv[index][strlen(my_argv[index]) - 2] = '\0';
-            //free(my_argv[index+1];
+            free(my_argv[index+1]);
             my_argv[index+1] = NULL;
             done = 1;
             printf("Redirecionado(2) para %s\n", outputFileName);
@@ -605,6 +612,7 @@ void checkOutputExecution() {
             free(my_argv[index]);
             free(my_argv[index+1]); //sempre funciona?
             my_argv[index] = NULL;
+            my_argv[index+1] = NULL;
             done = 1;
             printf("Redirecionado para %s\n", outputFileName);
         } else if(strncmp(my_argv[index], ">",1) == 0) {
@@ -618,7 +626,7 @@ void checkOutputExecution() {
             outputExecType = 2;
             strcpy(outputFileName, my_argv[index+1]);
             my_argv[index][strlen(my_argv[index]) - 1] = '\0';
-            //free(my_argv[index+1];
+            free(my_argv[index+1]);
             my_argv[index+1] = NULL;
             done = 1;
             printf("Redirecionado(2) para %s\n", outputFileName);
@@ -643,6 +651,7 @@ void checkOutputExecution3() {
             free(my_argv[index]);
             free(my_argv[index+1]); //sempre funciona?
             my_argv[index] = NULL;
+            my_argv[index+1] = NULL;
             done = 1;
             printf("Redirecionado error para %s\n", outputFileName);
         } else if(strncmp(my_argv[index], "2>",2) == 0) {
@@ -656,7 +665,7 @@ void checkOutputExecution3() {
             outputExecType = 2;
             strcpy(outputFileName, my_argv[index+1]);
             my_argv[index][strlen(my_argv[index]) - 2] = '\0';
-            //free(my_argv[index+1];
+            free(my_argv[index+1]);
             my_argv[index+1] = NULL;
             done = 1;
             printf("Redirecionado(2) error para %s\n", outputFileName);
@@ -681,30 +690,31 @@ void checkInputExecution() {
             free(my_argv[index]);
             free(my_argv[index+1]); //sempre funciona?
             my_argv[index] = NULL;
+            my_argv[index+1] = NULL;
             done = 1;
-            printf("Redirecionado input para %s\n", outputFileName);
+            printf("Redirecionado input para %s\n", inputFileName);
         } else if(strncmp(my_argv[index], "<",1) == 0) {
             inputExecType = 1;
             strcpy(inputFileName, &my_argv[index][1]);
             free(my_argv[index]);
             my_argv[index] = NULL;
             done = 1;
-            printf("Redirecionado input para %s\n", outputFileName);
+            printf("Redirecionado input para %s\n", inputFileName);
         } else if(strncmp(&my_argv[index][strlen(my_argv[index]) - 1],"<",1) == 0) {
             inputExecType = 1;
             strcpy(inputFileName, my_argv[index+1]);
             my_argv[index][strlen(my_argv[index]) - 1] = '\0';
-            //free(my_argv[index+1];
+            free(my_argv[index+1]);
             my_argv[index+1] = NULL;
             done = 1;
-            printf("Redirecionado(2) input para %s\n", outputFileName);
+            printf("Redirecionado(2) input para %s\n", inputFileName);
         }
         else if((out = strstr(my_argv[index],"<")) != 0) {
             inputExecType = 1;
             strcpy(inputFileName, &out[1]);
             *out = '\0';
             done = 1;
-            printf("Redirecionado(3) input para %s\n", outputFileName);
+            printf("Redirecionado(3) input para %s\n", inputFileName);
         }
     }
 }
@@ -855,7 +865,7 @@ int main(int argc, char *argv[], char *envp[])
        					command_list = parseCommand(tmp, &num_commands);
     					
     					for(i = 0; i < num_commands; i++) {
-    					   //printf("\n\n%s\n\n", command_list[i]);
+    					   //printf("\nCOMMAND[i]\n%s\n\n", command_list[i]);
 	                       
 	                       // Copy the arguments of the command to my_argv array
 						   fill_argv(command_list[i]);
@@ -886,7 +896,8 @@ int main(int argc, char *argv[], char *envp[])
 	                       // Copy the first argument to the cmd (name of file)
 	                       // and insert '\0'
 						   strncpy(cmd, my_argv[0], strlen(my_argv[0]));
-						   strncat(cmd, "\0", 1);
+						   cmd[strlen(my_argv[0])] = '\0';
+
 	                       // If there is no '/' in the beginning of the command, 
 	                       // attach the path and execute
 	                       if (localCommand(cmd, command_list[i], path_str)==0) {
@@ -915,6 +926,7 @@ int main(int argc, char *argv[], char *envp[])
 						for(i = 0; i < num_commands; i++) {
 							free(command_list[i]);
 						}
+
 						free(command_list);
 				   }
 				   bzero(tmp, 100);
