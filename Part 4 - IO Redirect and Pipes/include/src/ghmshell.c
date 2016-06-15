@@ -762,7 +762,13 @@ char ** parseCommand(char *command, int *num_commands) {
         while (command[i] != (char)124 && command[i] != '\0') {
             temp_command[size++] = command[i++];
         }
-        temp_command[size] = '\0';
+
+        if(temp_command[size - 1] == ' ') {
+        	temp_command[size - 1] = '\0';
+        	size--;
+        } else {
+        	temp_command[size] = '\0';
+    	}
         i++;
 
         // This loop removes any white spaces after a pipe char ('|')
@@ -849,6 +855,8 @@ int main(int argc, char *argv[], char *envp[])
        					command_list = parseCommand(tmp, &num_commands);
     					
     					for(i = 0; i < num_commands; i++) {
+    					   //printf("\n\n%s\n\n", command_list[i]);
+	                       
 	                       // Copy the arguments of the command to my_argv array
 						   fill_argv(command_list[i]);
 						   //printArgs(tmp);
