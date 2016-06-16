@@ -331,6 +331,25 @@ void call_execve(char *cmd)
 		// Child Process
         signal(SIGINT, SIG_IGN);
         signal(SIGTSTP, SIG_IGN);
+        signal(SIGTTOU, SIG_IGN);
+
+       /* Make yourself process group leader */
+		if(setpgid(0,0) < 0) {
+			perror("Could not set PGID");
+			exit(1);
+		}
+
+		/* transfer controlling terminal */
+		if( tcsetpgrp(fileno(stdin), getpgrp()) < 0) {
+			perror("Error in child tcsetpgrp for STDIN");
+			exit(1);
+		}
+
+		/* transfer controlling terminal */
+		if( tcsetpgrp(fileno(stdout), getpgrp()) < 0) {
+			perror("Error in child tcsetpgrp for STDOUT");
+			exit(1);
+		}
 
         if (outputExecType==1)
         {
@@ -393,6 +412,17 @@ void call_execve(char *cmd)
             } else {
             	node -> status = DONE;
             }
+            /* transfer controlling terminal */
+			if( tcsetpgrp(fileno(stdin), getpgrp()) < 0) {
+				perror("Error in parent tcsetpgrp for STDIN");
+				exit(1);
+			}
+
+			/* transfer controlling terminal */
+			if( tcsetpgrp(fileno(stdout), getpgrp()) < 0) {
+				perror("Error in parent tcsetpgrp for STDOUT");
+				exit(1);
+			}
 		}
         else {
         	foregroundActual = 0;
@@ -817,6 +847,7 @@ int main(int argc, char *argv[], char *envp[])
 	// Ignores buffered signals
 	//signal(SIGINT, SIG_IGN);
     //signal(SIGTSTP, SIG_IGN);
+    signal(SIGTTOU, SIG_IGN);
 
 	// Sets handle_signal to be the signal handler when new
 	// signals are received
@@ -847,6 +878,25 @@ int main(int argc, char *argv[], char *envp[])
 	} else {
 		wait(NULL);
 	}
+
+	/* Make yourself process group leader */
+	if(setpgid(getpid(), getpid()) < 0) {
+		perror("Could not set PGID for main");
+		exit(1);
+	}
+
+	/* transfer controlling terminal */
+	if( tcsetpgrp(fileno(stdin), getpgrp()) < 0) {
+		perror("Error in main tcsetpgrp for STDIN");
+		exit(1);
+	}
+
+	/* transfer controlling terminal */
+	if( tcsetpgrp(fileno(stdout), getpgrp()) < 0) {
+		perror("Error in main tcsetpgrp for STDOUT");
+		exit(1);
+	}
+
 	printf(SHELLNAME);
 	fflush(stdout);
     // Shell parser
