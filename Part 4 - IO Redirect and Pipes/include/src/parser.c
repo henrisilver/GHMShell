@@ -7,23 +7,23 @@
 char * isParseRequired(char *string);
 char ** parseCommand(char *command, int *num_commands);
 
-int main(int argc, char const *argv[])
-{
-    //char *command = calloc(100,sizeof(char));
-    char command[100] = "jobs pepperoni|peneira viadinho|giuka sergey|";
-    int num_commands = 0;
-    
-    if (isParseRequired(command) == NULL){
-        printf("%s\n", command);
-    } else {
-        parseCommand(&command[0],&num_commands);
-        if (DEBUG == 1) {
-            printf("Numero de comandos: %d\n", num_commands);
-        }
-    }
-
-    return 0;
-}
+//int main(int argc, char const *argv[])
+//{
+//    //char *command = calloc(100,sizeof(char));
+//    char command[100] = "jobs pepperoni|peneira viadinho|giuka sergey|";
+//    int num_commands = 0;
+//    
+//    if (isParseRequired(command) == NULL){
+//        printf("%s\n", command);
+//    } else {
+//        parseCommand(&command[0],&num_commands);
+//        if (DEBUG == 1) {
+//            printf("Numero de comandos: %d\n", num_commands);
+//        }
+//    }
+//
+//    return 0;
+//}
 
 // Checks if there is any '|'' char
 // Returns NULL in case there isn't any
