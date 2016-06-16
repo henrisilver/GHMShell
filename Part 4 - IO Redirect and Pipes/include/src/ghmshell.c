@@ -27,6 +27,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "reg.h"
+#define INPUT 0
+#define OUTPUT 1
 
  #define SHELLNAME "[GHMSHELL] : %s $ ", cwd_path
 
@@ -52,6 +54,7 @@ int inputPipe = 0;
 
 
 int pipefile[2];
+int pipefile2[2];
 
 
 int foregroundActual = 0;
@@ -337,9 +340,9 @@ void call_execve(char *cmd)
 	if(forkResult == 0) {
 		// Child Process
         //setpgid(getpid(), getpid());
-        signal(SIGINT, SIG_IGN);
-        signal(SIGTSTP, SIG_IGN);
-        signal(SIGTTOU, SIG_IGN);
+        //signal(SIGINT, SIG_IGN); //<<<<<<< DESCOMENTAR
+        //signal(SIGTSTP, SIG_IGN); //<<<<<<< DESCOMENTAR
+        //signal(SIGTTOU, SIG_IGN); //<<<<<<< DESCOMENTAR
 
        /* Make yourself process group leader */
 		if(setpgid(0,0) < 0) {
@@ -358,10 +361,24 @@ void call_execve(char *cmd)
 			perror("Error in child tcsetpgrp for STDOUT");
 			exit(1);
 		}
-
+        
+        printf("<INPUT: %d, OUTPUT: %d, cmd: %s>",inputPipe,outputPipe,cmd);
+        
+        
+        close(pipefile[OUTPUT]);
+        close(pipefile2[INPUT]);
         dup2(outputPipe,fileno(stdout));
-        //pipe(pipefile);
         dup2(inputPipe,fileno(stdin));
+        
+        
+        //close(pipefile2[INPUT]);
+
+//        dup2(outputPipe,fileno(stdout));
+//        close(pipefile[INPUT]);
+//        pipe(pipefile2);
+//        inputPipe = pipefile2[INPUT];
+//        dup2(inputPipe,fileno(stdin));
+//        close(pipefile2[OUTPUT]);
         
         if (outputExecType==1)
         {
@@ -397,8 +414,15 @@ void call_execve(char *cmd)
         }
         
         
-
+        
 		i = execve(cmd, my_argv, my_envp);
+        //FILE* a = fdopen(outputPipe, "a");
+        //write(outputPipe, "\0", 1);
+        //close(outputPipe);
+        //pipefile[0] = pipefile2[0];
+        //pipefile[1] = pipefile2[1];
+        //pipe(pipefile2);
+        
         
 		printf("errno is %d\n", errno);
 		if(i < 0) {
@@ -406,7 +430,7 @@ void call_execve(char *cmd)
 			printf("%s: %s\n", cmd, "command not found");
 			exit(1);		
 		}
-	} else {
+    } else {
 		// Father Process
 
 		// Inserir na lista
@@ -921,7 +945,6 @@ int main(int argc, char *argv[], char *envp[])
 	printf(SHELLNAME);
 	fflush(stdout);
     
-    pipe(pipefile);
     // Shell parser
 	while(c != EOF) {
         // Get char and select function
@@ -958,22 +981,33 @@ int main(int argc, char *argv[], char *envp[])
 	                       outputExecType = 0;
 	                       inputExecType = 0;
 	                       
+                            pipe(pipefile2);
+                            if (i==0) {
+                                inputPipe = originalStdin;
+                                fprintf(stderr, "<originalStdin for cmd: %s>\n",command_list[i]);
+                            }
+                            else
+                            {
+                                inputPipe = pipefile[INPUT];
+                                fprintf(stderr, "<in%d for cmd: %s>\n",inputPipe,command_list[i]);
+                            }
                             
                             if (i==num_commands-1) {
                                 outputPipe = originalStdout;
+                                fprintf(stderr, "<originalStdout for cmd: %s>\n",command_list[i]);
                             }
                             else
                             {
-                                outputPipe = pipefile[1];
+                                
+                                outputPipe = pipefile2[OUTPUT];
+                                fprintf(stderr, "<out%d for cmd: %s>\n",outputPipe,command_list[i]);
                             }
+                       
                             
-                            if (i==0) {
-                                inputPipe = originalStdin;
-                            }
-                            else
-                            {
-                                inputPipe = pipefile[0];
-                            }
+                            close(pipefile[OUTPUT]);
+                            close(pipefile2[INPUT]);
+                            pipefile[0] = dup(pipefile2[0]);
+                            pipefile[1] = dup(pipefile2[1]);
                             
 	                       // Check if the output is redirected
 	                       if (outputExecType == 0)
