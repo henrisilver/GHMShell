@@ -47,6 +47,13 @@ int inputExecType = 0;
 int num_commands = 0;
 char **command_list;
 
+int outputPipe = 0;
+int inputPipe = 0;
+
+
+int pipefile[2];
+
+
 int foregroundActual = 0;
 
 /* Arrays of string that will be used:
@@ -329,9 +336,14 @@ void call_execve(char *cmd)
 	int forkResult = fork();
 	if(forkResult == 0) {
 		// Child Process
+        //setpgid(getpid(), getpid());
         signal(SIGINT, SIG_IGN);
         signal(SIGTSTP, SIG_IGN);
 
+        dup2(outputPipe,fileno(stdout));
+        //pipe(pipefile);
+        dup2(inputPipe,fileno(stdin));
+        
         if (outputExecType==1)
         {
             FILE* out = fopen(outputFileName,"a+");
@@ -364,8 +376,11 @@ void call_execve(char *cmd)
         		fclose(in);
         	}
         }
+        
+        
 
 		i = execve(cmd, my_argv, my_envp);
+        
 		printf("errno is %d\n", errno);
 		if(i < 0) {
 			// execve failed
@@ -374,7 +389,7 @@ void call_execve(char *cmd)
 		}
 	} else {
 		// Father Process
-		setpgid(forkResult, forkResult);
+
 		// Inserir na lista
 		insertTail(jobs_list,createNode(cmd,forkResult,next_jid++,RUNNING));
 
@@ -383,6 +398,7 @@ void call_execve(char *cmd)
             //printf("\n\ncmd: %s\nfga: %d\n\n", cmd, foregroundActual);
             int status;
 			waitpid(forkResult, &status, WUNTRACED); // NULL implies a wait to any child
+            putc('\0', stdout);
 			// Reparar no status. Deve ser colocado como terminado
 			Node *node = findNode(jobs_list, next_jid-1);
 			if (WIFSIGNALED(status)) {
@@ -794,6 +810,7 @@ char ** parseCommand(char *command, int *num_commands) {
     return commands;
 }
 
+
 int main(int argc, char *argv[], char *envp[])
 {
 	// Character used to read the user's input, character by character
@@ -813,6 +830,10 @@ int main(int argc, char *argv[], char *envp[])
 	// Command string, composed of the actual command and
 	// the PATH to it.
 	char *cmd = (char *)malloc(sizeof(char) * 100);
+    
+    // Create a copy of the original pipes
+    const int originalStdout = dup(fileno(stdout));
+    const int originalStdin = dup(fileno(stdin));
 	
 	// Ignores buffered signals
 	//signal(SIGINT, SIG_IGN);
@@ -849,6 +870,8 @@ int main(int argc, char *argv[], char *envp[])
 	}
 	printf(SHELLNAME);
 	fflush(stdout);
+    
+    pipe(pipefile);
     // Shell parser
 	while(c != EOF) {
         // Get char and select function
@@ -863,7 +886,9 @@ int main(int argc, char *argv[], char *envp[])
 				   		num_commands = 0;
     					
        					command_list = parseCommand(tmp, &num_commands);
-    					
+                       
+
+                       
     					for(i = 0; i < num_commands; i++) {
     					   //printf("\nCOMMAND[i]\n%s\n\n", command_list[i]);
 	                       
@@ -883,6 +908,23 @@ int main(int argc, char *argv[], char *envp[])
 	                       outputExecType = 0;
 	                       inputExecType = 0;
 	                       
+                            
+                            if (i==num_commands-1) {
+                                outputPipe = originalStdout;
+                            }
+                            else
+                            {
+                                outputPipe = pipefile[1];
+                            }
+                            
+                            if (i==0) {
+                                inputPipe = originalStdin;
+                            }
+                            else
+                            {
+                                inputPipe = pipefile[0];
+                            }
+                            
 	                       // Check if the output is redirected
 	                       if (outputExecType == 0)
 	                           checkOutputExecution3();
@@ -890,8 +932,8 @@ int main(int argc, char *argv[], char *envp[])
 	                           checkOutputExecution2();
 	                       if (outputExecType == 0)
 	                           checkOutputExecution();
-
-	                       checkInputExecution();
+                            
+                            checkInputExecution();
 
 	                       // Copy the first argument to the cmd (name of file)
 	                       // and insert '\0'
