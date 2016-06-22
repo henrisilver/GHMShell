@@ -370,7 +370,7 @@ void call_execve(char *cmd)
             printf("<INPUT: %d, OUTPUT: %d, cmd: %s>",inputPipe,outputPipe,cmd);
         }
         
-        if (outputPipe == (*pipefile)[INPUT])
+        if (inputPipe == (*pipefile)[INPUT])
             close((*pipefile)[OUTPUT]);
         if (outputPipe == (*pipefile2)[OUTPUT])
             close((*pipefile2)[INPUT]);
