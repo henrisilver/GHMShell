@@ -29,6 +29,7 @@
 #include "reg.h"
 #define INPUT 0
 #define OUTPUT 1
+#define DEBUG_PIPE 0
 
 #define SHELLNAME "[GHMSHELL] : %s $ ", cwd_path
 
@@ -342,9 +343,9 @@ void call_execve(char *cmd)
     if(forkResult == 0) {
         // Child Process
         //setpgid(getpid(), getpid());
-        //signal(SIGINT, SIG_IGN); //<<<<<<< DESCOMENTAR
-        //signal(SIGTSTP, SIG_IGN); //<<<<<<< DESCOMENTAR
-        //signal(SIGTTOU, SIG_IGN); //<<<<<<< DESCOMENTAR
+        signal(SIGINT, SIG_IGN);
+        signal(SIGTSTP, SIG_IGN);
+        signal(SIGTTOU, SIG_IGN);
         
         /* Make yourself process group leader */
         if(setpgid(0,0) < 0) {
@@ -363,8 +364,9 @@ void call_execve(char *cmd)
             perror("Error in child tcsetpgrp for STDOUT");
             exit(1);
         }
-        
-        printf("<INPUT: %d, OUTPUT: %d, cmd: %s>",inputPipe,outputPipe,cmd);
+        if(DEBUG_PIPE){
+            printf("<INPUT: %d, OUTPUT: %d, cmd: %s>",inputPipe,outputPipe,cmd);
+        }
         
         if (outputPipe == (*pipefile)[INPUT])
             close((*pipefile)[OUTPUT]);
@@ -896,8 +898,8 @@ int main(int argc, char *argv[], char *envp[])
     originalStdin = dup(fileno(stdin));
     
     // Ignores buffered signals
-    //signal(SIGINT, SIG_IGN);
-    //signal(SIGTSTP, SIG_IGN);
+//    signal(SIGINT, SIG_IGN);
+//    signal(SIGTSTP, SIG_IGN);
     signal(SIGTTOU, SIG_IGN);
     
     // Sets handle_signal to be the signal handler when new
@@ -986,31 +988,35 @@ int main(int argc, char *argv[], char *envp[])
                     strcpy(inputFileName,"");
                     outputExecType = 0;
                     inputExecType = 0;
-                    if (i<num_commands-1){
+//                    if (i<num_commands-1){
                         pipefile2 = malloc(2*sizeof(int*));
                         pipefile2[0] = malloc(sizeof(int));
                         pipefile2[1] = malloc(sizeof(int));
                         pipe((*pipefile2));
-                    }
+//                    }
                     if (i==0) {
                         inputPipe = originalStdin;
-                        fprintf(stderr, "<originalStdin for cmd: %s>\n",command_list[i]);
+                        if(DEBUG_PIPE)
+                            fprintf(stderr, "<originalStdin for cmd: %s>\n",command_list[i]);
                     }
                     else
                     {
                         inputPipe = (*pipefile)[INPUT];
-                        fprintf(stderr, "<in%d for cmd: %s>\n",inputPipe,command_list[i]);
+                        if(DEBUG_PIPE)
+                            fprintf(stderr, "<in%d for cmd: %s>\n",inputPipe,command_list[i]);
                     }
                     
                     if (i==num_commands-1) {
                         outputPipe = originalStdout;
-                        fprintf(stderr, "<originalStdout for cmd: %s>\n",command_list[i]);
+                        if(DEBUG_PIPE)
+                            fprintf(stderr, "<originalStdout for cmd: %s>\n",command_list[i]);
                     }
                     else
                     {
                         
                         outputPipe = (*pipefile2)[OUTPUT];
-                        fprintf(stderr, "<out%d for cmd: %s>\n",outputPipe,command_list[i]);
+                        if(DEBUG_PIPE)
+                            fprintf(stderr, "<out%d for cmd: %s>\n",outputPipe,command_list[i]);
                     }
                     
                     
@@ -1054,7 +1060,8 @@ int main(int argc, char *argv[], char *envp[])
                     }
                     // Clear the arguments, cmd, and repeat the shell
                     free_argv();
-                    printf(SHELLNAME);
+                    if (outputPipe == originalStdout)
+                        printf(SHELLNAME);
                     fflush(stdin);
                     bzero(cmd, 100);
                     free(pipefile);
