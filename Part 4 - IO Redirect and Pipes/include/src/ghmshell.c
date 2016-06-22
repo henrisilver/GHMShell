@@ -342,9 +342,9 @@ void call_execve(char *cmd)
     int forkResult = fork();
     if(forkResult == 0) {
         // Child Process
-        //setpgid(getpid(), getpid());
-        signal(SIGINT, SIG_IGN);
-        signal(SIGTSTP, SIG_IGN);
+//        setpgid(getpid(), getpid());
+//        signal(SIGINT, SIG_IGN);
+//        signal(SIGTSTP, SIG_IGN);
         signal(SIGTTOU, SIG_IGN);
         
         /* Make yourself process group leader */
@@ -354,15 +354,17 @@ void call_execve(char *cmd)
         }
         
         /* transfer controlling terminal */
-        if( tcsetpgrp(fileno(stdin), getpgrp()) < 0) {
-            perror("Error in child tcsetpgrp for STDIN");
-            exit(1);
-        }
-        
-        /* transfer controlling terminal */
-        if( tcsetpgrp(fileno(stdout), getpgrp()) < 0) {
-            perror("Error in child tcsetpgrp for STDOUT");
-            exit(1);
+        if(!backgroundExec){
+            if( tcsetpgrp(fileno(stdin), getpgrp()) < 0) {
+                perror("Error in child tcsetpgrp for STDIN");
+                exit(1);
+            }
+            
+            /* transfer controlling terminal */
+            if( tcsetpgrp(fileno(stdout), getpgrp()) < 0) {
+                perror("Error in child tcsetpgrp for STDOUT");
+                exit(1);
+            }
         }
         if(DEBUG_PIPE){
             printf("<INPUT: %d, OUTPUT: %d, cmd: %s>",inputPipe,outputPipe,cmd);
@@ -898,8 +900,8 @@ int main(int argc, char *argv[], char *envp[])
     originalStdin = dup(fileno(stdin));
     
     // Ignores buffered signals
-//    signal(SIGINT, SIG_IGN);
-//    signal(SIGTSTP, SIG_IGN);
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
     signal(SIGTTOU, SIG_IGN);
     
     // Sets handle_signal to be the signal handler when new
@@ -1058,6 +1060,18 @@ int main(int argc, char *argv[], char *envp[])
                             }
                         }
                     }
+                    
+                    if( tcsetpgrp(fileno(stdin), getpgrp()) < 0) {
+                        perror("Error in tcsetpgrp for STDIN");
+                        exit(1);
+                    }
+                    
+                    /* transfer controlling terminal */
+                    if( tcsetpgrp(fileno(stdout), getpgrp()) < 0) {
+                        perror("Error in tcsetpgrp for STDOUT");
+                        exit(1);
+                    }
+                    
                     // Clear the arguments, cmd, and repeat the shell
                     free_argv();
                     if (outputPipe == originalStdout)
